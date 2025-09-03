@@ -148,7 +148,7 @@ func (b *Bot) handleStart(user *UserState) error {
 		),
 	)
 
-	welcomeText := "👋 *Добро пожаловать в школьный электронный дневник!*\n\n"
+	welcomeText := "👋 <b>Добро пожаловать в школьный электронный дневник!</b>\n\n"
 	if user.Client.IsAuthenticated() {
 		welcomeText += "✅ Вы авторизованы\n\n"
 	} else {
@@ -527,9 +527,9 @@ func (b *Bot) formatDiary(user *UserState, diary *eljur.DiaryResponse) error {
 						}
 					}
 				}
+			} else {
+				diaryText.WriteString("📝 Ошибка обработки данных студентов")
 			}
-		} else {
-			diaryText.WriteString("📝 Ошибка обработки данных студентов")
 		}
 	}
 
