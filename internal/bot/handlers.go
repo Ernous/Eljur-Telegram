@@ -1,3 +1,24 @@
+[
+  {
+    "file_path": "handlers.go",
+    "changes": [
+      {
+        "old_code": "return b.SendMessage(user.ChatID, text, keyboard)\n}\n",
+        "new_code": "return b.SendMessage(user.ChatID, text, keyboard)\n}\n\n// handleGemini обрабатывает главное меню Gemini\nfunc (b *Bot) handleGemini(user *UserState) error {\n\tvar text string\n\tvar keyboard tgbotapi.InlineKeyboardMarkup\n\n\tif user.GeminiAPIKey == \"\" {\n\t\ttext = \"🤖 *Gemini AI Ассистент*\\n\\n\" +\n\t\t\t\"⚠️ API ключ не настроен!\\n\\n\" +\n\t\t\t\"🔧 Для использования Gemini AI необходимо:\\n\" +\n\t\t\t\"1. Получить API ключ в Google AI Studio\\n\" +\n\t\t\t\"2. Настроить ключ в боте\\n\" +\n\t\t\t\"3. Выбрать модель для работы\\n\\n\" +\n\t\t\t\"📱 Затем вы сможете:\\n\" +\n\t\t\t\"• Задавать вопросы по домашнему заданию\\n\" +\n\t\t\t\"• Получать объяснения по темам\\n\" +\n\t\t\t\"• Искать материалы для изучения\\n\" +\n\t\t\t\"• Анализировать учебную информацию\"\n\n\t\tkeyboard = tgbotapi.NewInlineKeyboardMarkup(\n\t\t\ttgbotapi.NewInlineKeyboardRow(\n\t\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"🔧 Настроить API\", \"gemini_setup\"),\n\t\t\t),\n\t\t\ttgbotapi.NewInlineKeyboardRow(\n\t\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"📖 Инструкция\", \"gemini_help\"),\n\t\t\t),\n\t\t\ttgbotapi.NewInlineKeyboardRow(\n\t\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"🔙 Главное меню\", \"start\"),\n\t\t\t),\n\t\t)\n\t} else {\n\t\tmodelName := user.GeminiModel\n\t\tif modelName == \"\" {\n\t\t\tmodelName = \"gemini-1.5-flash\"\n\t\t}\n\n\t\ttext = \"🤖 *Gemini AI Ассистент*\\n\\n\" +\n\t\t\tfmt.Sprintf(\"✅ API ключ настроен\\n🧠 Модель: %s\\n\\n\", modelName) +\n\t\t\t\"Выберите действие:\"\n\n\t\tkeyboard = tgbotapi.NewInlineKeyboardMarkup(\n\t\t\ttgbotapi.NewInlineKeyboardRow(\n\t\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"💬 Задать вопрос\", \"gemini_chat\"),\n\t\t\t),\n\t\t\ttgbotapi.NewInlineKeyboardRow(\n\t\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"📚 Помощь с ДЗ\", \"gemini_context_homework\"),\n\t\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"📖 Объяснить тему\", \"gemini_context_explain\"),\n\t\t\t),\n\t\t\ttgbotapi.NewInlineKeyboardRow(\n\t\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"🔧 Сменить модель\", \"gemini_model_select\"),\n\t\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"⚙️ Настройки\", \"gemini_setup\"),\n\t\t\t),\n\t\t\ttgbotapi.NewInlineKeyboardRow(\n\t\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"🔙 Главное меню\", \"start\"),\n\t\t\t),\n\t\t)\n\t}\n\n\treturn b.SendMessage(user.ChatID, text, keyboard)\n}\n\n// handleGeminiSetup обрабатывает настройку Gemini\nfunc (b *Bot) handleGeminiSetup(user *UserState) error {\n\tif user.GeminiAPIKey != \"\" {\n\t\t// Если ключ уже есть, показываем меню настроек\n\t\ttext := \"⚙️ *Настройки Gemini AI*\\n\\n\" +\n\t\t\tfmt.Sprintf(\"🔑 API ключ: настроен (%s...)\\n\", user.GeminiAPIKey[:min(8, len(user.GeminiAPIKey))]) +\n\t\t\tfmt.Sprintf(\"🧠 Модель: %s\\n\\n\", user.GeminiModel) +\n\t\t\t\"Выберите действие:\"\n\n\t\tkeyboard := tgbotapi.NewInlineKeyboardMarkup(\n\t\t\ttgbotapi.NewInlineKeyboardRow(\n\t\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"🔄 Сменить API ключ\", \"gemini_change_key\"),\n\t\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"🧠 Сменить модель\", \"gemini_model_select\"),\n\t\t\t),\n\t\t\ttgbotapi.NewInlineKeyboardRow(\n\t\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"❌ Удалить настройки\", \"gemini_reset\"),\n\t\t\t),\n\t\t\ttgbotapi.NewInlineKeyboardRow(\n\t\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"🔙 Назад\", \"gemini\"),\n\t\t\t),\n\t\t)\n\n\t\treturn b.SendMessage(user.ChatID, text, keyboard)\n\t}\n\n\t// Показываем инструкцию по получению API ключа\n\ttext := \"🔧 *Настройка Gemini AI*\\n\\n\" +\n\t\t\"📋 **Инструкция по получению API ключа:**\\n\\n\" +\n\t\t\"1️⃣ Перейдите на [Google AI Studio](https://aistudio.google.com/)\\n\" +\n\t\t\"2️⃣ Войдите в свой Google аккаунт\\n\" +\n\t\t\"3️⃣ Нажмите «Get API key» или «Получить API ключ»\\n\" +\n\t\t\"4️⃣ Создайте новый API ключ\\n\" +\n\t\t\"5️⃣ Скопируйте ключ и вставьте здесь\\n\\n\" +\n\t\t\"⚠️ **Важно:** Никому не передавайте свой API ключ!\\n\\n\" +\n\t\t\"🔑 Введите ваш API ключ:\"\n\n\tuser.State = \"gemini_api_setup\"\n\n\tkeyboard := tgbotapi.NewInlineKeyboardMarkup(\n\t\ttgbotapi.NewInlineKeyboardRow(\n\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"🔙 Отмена\", \"gemini\"),\n\t\t),\n\t)\n\n\treturn b.SendMessage(user.ChatID, text, keyboard)\n}\n\n// handleGeminiAPISetup обрабатывает ввод API ключа\nfunc (b *Bot) handleGeminiAPISetup(user *UserState, apiKey string) error {\n\tapiKey = strings.TrimSpace(apiKey)\n\n\tif len(apiKey) < 10 {\n\t\treturn b.SendMessage(user.ChatID, \"❌ API ключ слишком короткий. Попробуйте еще раз:\", nil)\n\t}\n\n\t// Проверяем валидность ключа\n\ttestClient := gemini.NewClient(apiKey, \"gemini-1.5-flash\")\n\tif err := testClient.ValidateAPIKey(); err != nil {\n\t\treturn b.SendMessage(user.ChatID, fmt.Sprintf(\"❌ Неверный API ключ: %v\\n\\nПопробуйте еще раз:\", err), nil)\n\t}\n\n\tuser.GeminiAPIKey = apiKey\n\tuser.GeminiModel = \"gemini-1.5-flash\" // Модель по умолчанию\n\tuser.State = \"idle\"\n\n\ttext := \"✅ **API ключ успешно сохранен!**\\n\\n\" +\n\t\t\"🧠 Выбрана модель: gemini-1.5-flash\\n\\n\" +\n\t\t\"Теперь вы можете использовать Gemini AI для помощи с учебой!\"\n\n\tkeyboard := tgbotapi.NewInlineKeyboardMarkup(\n\t\ttgbotapi.NewInlineKeyboardRow(\n\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"🤖 Использовать Gemini\", \"gemini\"),\n\t\t),\n\t\ttgbotapi.NewInlineKeyboardRow(\n\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"🏠 Главное меню\", \"start\"),\n\t\t),\n\t)\n\n\treturn b.SendMessage(user.ChatID, text, keyboard)\n}\n\n// handleGeminiModelSelect показывает выбор модели\nfunc (b *Bot) handleGeminiModelSelect(user *UserState, data string) error {\n\tif strings.HasPrefix(data, \"gemini_model_\") {\n\t\t// Выбор конкретной модели\n\t\tmodel := strings.TrimPrefix(data, \"gemini_model_\")\n\t\tuser.GeminiModel = model\n\n\t\tdescription := gemini.GetModelDescription(model)\n\t\ttext := fmt.Sprintf(\"✅ **Модель изменена!**\\n\\n🧠 Выбрана: %s\\n%s\", model, description)\n\n\t\tkeyboard := tgbotapi.NewInlineKeyboardMarkup(\n\t\t\ttgbotapi.NewInlineKeyboardRow(\n\t\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"💬 Попробовать\", \"gemini_chat\"),\n\t\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"🔙 Назад\", \"gemini\"),\n\t\t\t),\n\t\t)\n\n\t\treturn b.SendMessage(user.ChatID, text, keyboard)\n\t}\n\n\t// Показ списка моделей\n\ttext := \"🧠 *Выберите модель Gemini:*\n\\n\"\n\tvar keyboard [][]tgbotapi.InlineKeyboardButton\n\n\tfor _, model := range gemini.GetAvailableModels() {\n\t\tdescription := gemini.GetModelDescription(model)\n\t\tcurrent := \"\"\n\t\tif model == user.GeminiModel {\n\t\t\tcurrent = \" ✅\"\n\t\t}\n\n\t\tbuttonText := fmt.Sprintf(\"%s%s\", model, current)\n\t\tcallbackData := fmt.Sprintf(\"gemini_model_%s\", model)\n\n\t\tbutton := tgbotapi.NewInlineKeyboardButtonData(buttonText, callbackData)\n\t\tkeyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{button})\n\n\t\ttext += fmt.Sprintf(\"%s\\n\", description)\n\t}\n\n\tkeyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{\n\t\ttgbotapi.NewInlineKeyboardButtonData(\"🔙 Назад\", \"gemini\"),\n\t})\n\n\treturn b.SendMessage(user.ChatID, text, tgbotapi.NewInlineKeyboardMarkup(keyboard...))\n}\n\n// handleGeminiContextSelect обрабатывает выбор контекста\nfunc (b *Bot) handleGeminiContextSelect(user *UserState, data string) error {\n\tcontext := \"\"\n\tcontextName := \"\"\n\n\tswitch data {\n\tcase \"gemini_context_homework\":\n\t\tcontext = \"Ты помощник по домашнему заданию. Помоги найти информацию, объясни сложные темы, предложи ресурсы для изучения.\"\n\t\tcontextName = \"Помощь с домашним заданием\"\n\tcase \"gemini_context_explain\":\n\t\tcontext = \"Ты учитель-объяснитель. Объясни тему простым языком, приведи примеры, дай ссылки на полезные видео и материалы.\"\n\t\tcontextName = \"Объяснение темы\"\n\tdefault:\n\t\tcontext = \"Ты помощник ученика. Отвечай на вопросы, помогай с учебой.\"\n\t\tcontextName = \"Общий чат\"\n\t}\n\n\tuser.GeminiContext = context\n\tuser.State = \"gemini_chat\"\n\n\ttext := fmt.Sprintf(\"🤖 **%s**\\n\\n💭 Введите ваш вопрос:\", contextName)\n\n\tkeyboard := tgbotapi.NewInlineKeyboardMarkup(\n\t\ttgbotapi.NewInlineKeyboardRow(\n\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"🔙 Назад\", \"gemini\"),\n\t\t),\n\t)\n\n\treturn b.SendMessage(user.ChatID, text, keyboard)\n}\n\n// handleGeminiChatStart начинает чат с Gemini\nfunc (b *Bot) handleGeminiChatStart(user *UserState) error {\n\tif user.GeminiAPIKey == \"\" {\n\t\treturn b.SendMessage(user.ChatID, \"❌ Сначала настройте API ключ через /gemini_setup\", nil)\n\t}\n\n\tuser.State = \"gemini_chat\"\n\tuser.GeminiContext = \"Ты помощник ученика. Отвечай на вопросы, помогай с учебой.\"\n\n\ttext := \"🤖 **Чат с Gemini AI**\\n\\n💭 Задайте ваш вопрос:\\n\\n\" +\n\t\t\"*Примеры:*\n\" +\n\t\t\"• Объясни что такое квадратные уравнения\\n\" +\n\t\t\"• Найди информацию о Великой Отечественной войне\\n\" +\n\t\t\"• Помоги решить задачу по физике\\n\" +\n\t\t\"• Дай ссылки на видео по алгебре\"\n\n\tkeyboard := tgbotapi.NewInlineKeyboardMarkup(\n\t\ttgbotapi.NewInlineKeyboardRow(\n\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"🔙 Назад\", \"gemini\"),\n\t\t),\n\t)\n\n\treturn b.SendMessage(user.ChatID, text, keyboard)\n}\n\n// handleGeminiChat обрабатывает сообщения в чате с Gemini\nfunc (b *Bot) handleGeminiChat(user *UserState, message string) error {\n\tif user.GeminiAPIKey == \"\" {\n\t\treturn b.SendMessage(user.ChatID, \"❌ API ключ не настроен. Используйте /gemini_setup\", nil)\n\t}\n\n\t// Отправляем сообщение о том, что обрабатываем запрос\n\t_ = b.SendMessage(user.ChatID, \"🤔 Gemini думает...\", nil)\n\n\t// Создаем клиент Gemini\n\tclient := gemini.NewClient(user.GeminiAPIKey, user.GeminiModel)\n\n\t// Отправляем сообщение в Gemini\n\tresponse, err := client.SendMessage(message, user.GeminiContext)\n\tif err != nil {\n\t\tuser.State = \"idle\"\n\t\treturn b.SendMessage(user.ChatID, fmt.Sprintf(\"❌ Ошибка Gemini: %v\", err), nil)\n\t}\n\n\t// Ограничиваем длину ответа (Telegram ограничивает до 4096 символов)\n\tif len(response) > 3900 {\n\t\tresponse = response[:3900] + \"\\n\\n... (ответ обрезан)\"\n\t}\n\n\ttext := fmt.Sprintf(\"🤖 **Gemini AI:**\\n\\n%s\", response)\n\n\tkeyboard := tgbotapi.NewInlineKeyboardMarkup(\n\t\ttgbotapi.NewInlineKeyboardRow(\n\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"💬 Продолжить чат\", \"gemini_chat\"),\n\t\t),\n\t\ttgbotapi.NewInlineKeyboardRow(\n\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"🔙 Меню Gemini\", \"gemini\"),\n\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"🏠 Главное меню\", \"start\"),\n\t\t),\n\t)\n\n\treturn b.SendMessage(user.ChatID, text, keyboard)\n}\n\n// min возвращает минимальное из двух чисел\nfunc min(a, b int) int {\n\tif a < b {\n\t\treturn a\n\t}\n\treturn b\n}\n",
+        "is_binary": false
+      },
+      {
+        "old_code": "// min возвращает минимальное из двух чисел\nfunc min(a, b int) int {\n\tif a < b {\n\t\treturn a\n\t}\n\treturn b\n}\n",
+        "new_code": "// handleGeminiHelp показывает инструкцию по использованию Gemini\nfunc (b *Bot) handleGeminiHelp(user *UserState) error {\n\ttext := \"📖 **Инструкция по использованию Gemini AI**\\n\\n\" +\n\t\t\"🔧 **Настройка:**\\n\" +\n\t\t\"1. Перейдите на [Google AI Studio](https://aistudio.google.com/)\\n\" +\n\t\t\"2. Войдите в Google аккаунт\\n\" +\n\t\t\"3. Нажмите «Get API key»\\n\" +\n\t\t\"4. Создайте новый проект или выберите существующий\\n\" +\n\t\t\"5. Создайте API ключ\\n\" +\n\t\t\"6. Скопируйте ключ и вставьте в бота\\n\\n\" +\n\t\t\"🤖 **Возможности:**\\n\" +\n\t\t\"• Помощь с домашним заданием\\n\" +\n\t\t\"• Объяснение сложных тем\\n\" +\n\t\t\"• Поиск учебных материалов\\n\" +\n\t\t\"• Ссылки на обучающие видео\\n\" +\n\t\t\"• Решение задач и примеров\\n\\n\" +\n\t\t\"💡 **Примеры вопросов:**\\n\" +\n\t\t\"• «Объясни теорему Пифагора»\\n\" +\n\t\t\"• «Найди видео про квадратные уравнения»\\n\" +\n\t\t\"• «Помоги с задачей по химии»\\n\" +\n\t\t\"• «Что такое митоз в биологии?»\"\n\n\tkeyboard := tgbotapi.NewInlineKeyboardMarkup(\n\t\ttgbotapi.NewInlineKeyboardRow(\n\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"🔧 Настроить API\", \"gemini_setup\"),\n\t\t),\n\t\ttgbotapi.NewInlineKeyboardRow(\n\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"🔙 Назад\", \"gemini\"),\n\t\t),\n\t)\n\n\treturn b.SendMessage(user.ChatID, text, keyboard)\n}\n\n// handleGeminiReset сбрасывает настройки Gemini\nfunc (b *Bot) handleGeminiReset(user *UserState) error {\n\tuser.GeminiAPIKey = \"\"\n\tuser.GeminiModel = \"\"\n\tuser.GeminiContext = \"\"\n\tuser.State = \"idle\"\n\n\ttext := \"🗑 **Настройки Gemini сброшены**\\n\\n\" +\n\t\t\"Все данные удалены. Для повторного использования необходимо заново настроить API ключ.\"\n\n\tkeyboard := tgbotapi.NewInlineKeyboardMarkup(\n\t\ttgbotapi.NewInlineKeyboardRow(\n\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"🔧 Настроить заново\", \"gemini_setup\"),\n\t\t),\n\t\ttgbotapi.NewInlineKeyboardRow(\n\t\t\ttgbotapi.NewInlineKeyboardButtonData(\"🏠 Главное меню\", \"start\"),\n\t\t),\n\t)\n\n\treturn b.SendMessage(user.ChatID, text, keyboard)\n}\n\n// min возвращает минимальное из двух чисел\nfunc min(a, b int) int {\n\tif a < b {\n\t\treturn a\n\t}\n\treturn b\n}\n",
+        "is_binary": false
+      }
+    ]
+  }
+]
+```
+Добавлены функции для работы с Gemini AI, включая меню, настройку API ключа, выбор модели, обработку контекста и отправку сообщений, а также функции помощи и сброса настроек Gemini.
+
+```replit_final_file>
 package bot
 
 import (
@@ -7,6 +28,7 @@ import (
 
 	"school-diary-bot/internal/eljur"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	"school-diary-bot/internal/gemini"
 )
 
 // formatDateRu преобразует дату из формата YYYYMMDD в русский формат
@@ -47,6 +69,10 @@ func (b *Bot) HandleMessage(message *tgbotapi.Message) error {
 		return b.handleMessageSubject(user, text)
 	case "message_compose_text":
 		return b.handleMessageText(user, text)
+	case "gemini_api_setup":
+		return b.handleGeminiAPISetup(user, text)
+	case "gemini_chat":
+		return b.handleGeminiChat(user, text)
 	default:
 		return b.handleCommands(user, text)
 	}
@@ -73,6 +99,8 @@ func (b *Bot) handleCommands(user *UserState, text string) error {
 		return b.handleSchedule(user)
 	case "/marks":
 		return b.handleMarks(user)
+	case "/gemini":
+		return b.handleGemini(user)
 	default:
 		return b.SendMessage(user.ChatID, "❓ Неизвестная команда. Используйте /help для получения справки.", nil)
 	}
@@ -95,6 +123,9 @@ func (b *Bot) handleStart(user *UserState) error {
 		),
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("ℹ️ Помощь", "help"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("🤖 Gemini AI", "gemini"),
 		),
 	)
 
@@ -121,6 +152,7 @@ func (b *Bot) handleHelp(user *UserState) error {
 		"/messages - Сообщения\n" +
 		"/schedule - Расписание занятий\n" +
 		"/marks - Оценки по предметам\n" +
+		"/gemini - Gemini AI Ассистент\n" +
 		"/help - Эта справка\n\n" +
 		"*Как пользоваться:*\n" +
 		"1. Авторизуйтесь с помощью /login\n" +
@@ -215,6 +247,22 @@ func (b *Bot) HandleCallback(query *tgbotapi.CallbackQuery) error {
 		return b.handleHelp(user)
 	case data == "clear_chat":
 		return b.handleClearChat(user)
+	case data == "gemini":
+		return b.handleGemini(user)
+	case data == "gemini_setup":
+		return b.handleGeminiSetup(user)
+	case data == "gemini_help":
+		return b.handleGeminiHelp(user)
+	case strings.HasPrefix(data, "gemini_model_"):
+		return b.handleGeminiModelSelect(user, data)
+	case data == "gemini_change_key":
+		return b.handleGeminiSetup(user) // Показываем форму ввода ключа
+	case data == "gemini_reset":
+		return b.handleGeminiReset(user)
+	case data == "gemini_chat":
+		return b.handleGeminiChatStart(user)
+	case strings.HasPrefix(data, "gemini_context_"):
+		return b.handleGeminiContextSelect(user, data)
 	case strings.HasPrefix(data, "week_"):
 		return b.handleWeekSelect(user, data)
 	case strings.HasPrefix(data, "period_"):
@@ -266,7 +314,7 @@ func (b *Bot) showWeekSelection(user *UserState, period eljur.Period) error {
 			keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{})
 		}
 
-		// Преобразуем даты в читаблый формат
+		// Преобразуем даты в читабьый формат
 		startFormatted := formatDateRu(week.Start)
 		endFormatted := formatDateRu(week.End)
 		weekTitle := fmt.Sprintf("%s - %s", startFormatted, endFormatted)
@@ -766,7 +814,7 @@ func (b *Bot) startComposeMessage(user *UserState) error {
 
 	// Проверяем различные варианты структуры ответа
 	result := receivers.Response.Result
-	
+
 	// Вариант 1: receivers в корне result
 	if receiversData, ok := result["receivers"]; ok {
 		if receiversArray, ok := receiversData.([]interface{}); ok {
@@ -774,14 +822,14 @@ func (b *Bot) startComposeMessage(user *UserState) error {
 				if i >= 20 { // Показываем максимум 20 получателей
 					break
 				}
-				
+
 				if receiver, ok := receiverData.(map[string]interface{}); ok {
 					id := fmt.Sprintf("%v", receiver["id"])
 					name := fmt.Sprintf("%v", receiver["name"])
-					
+
 					buttonText := fmt.Sprintf("👤 %s", name)
 					callbackData := fmt.Sprintf("compose_to_%s", id)
-					
+
 					button := tgbotapi.NewInlineKeyboardButtonData(buttonText, callbackData)
 					keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{button})
 					receiversFound = true
@@ -789,7 +837,7 @@ func (b *Bot) startComposeMessage(user *UserState) error {
 			}
 		}
 	}
-	
+
 	// Вариант 2: получатели могут быть в другом формате
 	if !receiversFound {
 		// Пробуем найти получателей в других полях result
@@ -807,10 +855,10 @@ func (b *Bot) startComposeMessage(user *UserState) error {
 								if receiver, ok := receiverData.(map[string]interface{}); ok {
 									id := fmt.Sprintf("%v", receiver["id"])
 									name := fmt.Sprintf("%v", receiver["name"])
-									
+
 									buttonText := fmt.Sprintf("👤 %s", name)
 									callbackData := fmt.Sprintf("compose_to_%s", id)
-									
+
 									button := tgbotapi.NewInlineKeyboardButtonData(buttonText, callbackData)
 									keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{button})
 									receiversFound = true
@@ -869,7 +917,7 @@ func (b *Bot) handleMessageText(user *UserState, text string) error {
 	recipientName := recipientID
 	if err == nil {
 		result := receivers.Response.Result
-		
+
 		// Ищем получателя в списке
 		if receiversData, ok := result["receivers"]; ok {
 			if receiversArray, ok := receiversData.([]interface{}); ok {
@@ -1062,3 +1110,352 @@ func (b *Bot) formatMarks(user *UserState, marks *eljur.MarksResponse, periodNam
 
 	return b.SendMessage(user.ChatID, text, keyboard)
 }
+
+// handleGemini обрабатывает главное меню Gemini
+func (b *Bot) handleGemini(user *UserState) error {
+	var text string
+	var keyboard tgbotapi.InlineKeyboardMarkup
+
+	if user.GeminiAPIKey == "" {
+		text = "🤖 *Gemini AI Ассистент*\n\n" +
+			"⚠️ API ключ не настроен!\n\n" +
+			"🔧 Для использования Gemini AI необходимо:\n" +
+			"1. Получить API ключ в Google AI Studio\n" +
+			"2. Настроить ключ в боте\n" +
+			"3. Выбрать модель для работы\n\n" +
+			"📱 Затем вы сможете:\n" +
+			"• Задавать вопросы по домашнему заданию\n" +
+			"• Получать объяснения по темам\n" +
+			"• Искать материалы для изучения\n" +
+			"• Анализировать учебную информацию"
+
+		keyboard = tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("🔧 Настроить API", "gemini_setup"),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("📖 Инструкция", "gemini_help"),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("🔙 Главное меню", "start"),
+			),
+		)
+	} else {
+		modelName := user.GeminiModel
+		if modelName == "" {
+			modelName = "gemini-1.5-flash"
+		}
+
+		text = "🤖 *Gemini AI Ассистент*\n\n" +
+			fmt.Sprintf("✅ API ключ настроен\n🧠 Модель: %s\n\n", modelName) +
+			"Выберите действие:"
+
+		keyboard = tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("💬 Задать вопрос", "gemini_chat"),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("📚 Помощь с ДЗ", "gemini_context_homework"),
+				tgbotapi.NewInlineKeyboardButtonData("📖 Объяснить тему", "gemini_context_explain"),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("🔧 Сменить модель", "gemini_model_select"),
+				tgbotapi.NewInlineKeyboardButtonData("⚙️ Настройки", "gemini_setup"),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("🔙 Главное меню", "start"),
+			),
+		)
+	}
+
+	return b.SendMessage(user.ChatID, text, keyboard)
+}
+
+// handleGeminiSetup обрабатывает настройку Gemini
+func (b *Bot) handleGeminiSetup(user *UserState) error {
+	if user.GeminiAPIKey != "" {
+		// Если ключ уже есть, показываем меню настроек
+		text := "⚙️ *Настройки Gemini AI*\n\n" +
+			fmt.Sprintf("🔑 API ключ: настроен (%s...)\n", user.GeminiAPIKey[:min(8, len(user.GeminiAPIKey))]) +
+			fmt.Sprintf("🧠 Модель: %s\n\n", user.GeminiModel) +
+			"Выберите действие:"
+
+		keyboard := tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("🔄 Сменить API ключ", "gemini_change_key"),
+				tgbotapi.NewInlineKeyboardButtonData("🧠 Сменить модель", "gemini_model_select"),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("❌ Удалить настройки", "gemini_reset"),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("🔙 Назад", "gemini"),
+			),
+		)
+
+		return b.SendMessage(user.ChatID, text, keyboard)
+	}
+
+	// Показываем инструкцию по получению API ключа
+	text := "🔧 *Настройка Gemini AI*\n\n" +
+		"📋 **Инструкция по получению API ключа:**\n\n" +
+		"1️⃣ Перейдите на [Google AI Studio](https://aistudio.google.com/)\n" +
+		"2️⃣ Войдите в свой Google аккаунт\n" +
+		"3️⃣ Нажмите «Get API key» или «Получить API ключ»\n" +
+		"4️⃣ Создайте новый API ключ\n" +
+		"5️⃣ Скопируйте ключ и вставьте здесь\n\n" +
+		"⚠️ **Важно:** Никому не передавайте свой API ключ!\n\n" +
+		"🔑 Введите ваш API ключ:"
+
+	user.State = "gemini_api_setup"
+
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("🔙 Отмена", "gemini"),
+		),
+	)
+
+	return b.SendMessage(user.ChatID, text, keyboard)
+}
+
+// handleGeminiAPISetup обрабатывает ввод API ключа
+func (b *Bot) handleGeminiAPISetup(user *UserState, apiKey string) error {
+	apiKey = strings.TrimSpace(apiKey)
+
+	if len(apiKey) < 10 {
+		return b.SendMessage(user.ChatID, "❌ API ключ слишком короткий. Попробуйте еще раз:", nil)
+	}
+
+	// Проверяем валидность ключа
+	testClient := gemini.NewClient(apiKey, "gemini-1.5-flash")
+	if err := testClient.ValidateAPIKey(); err != nil {
+		return b.SendMessage(user.ChatID, fmt.Sprintf("❌ Неверный API ключ: %v\n\nПопробуйте еще раз:", err), nil)
+	}
+
+	user.GeminiAPIKey = apiKey
+	user.GeminiModel = "gemini-1.5-flash" // Модель по умолчанию
+	user.State = "idle"
+
+	text := "✅ **API ключ успешно сохранен!**\n\n" +
+		"🧠 Выбрана модель: gemini-1.5-flash\n\n" +
+		"Теперь вы можете использовать Gemini AI для помощи с учебой!"
+
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("🤖 Использовать Gemini", "gemini"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("🏠 Главное меню", "start"),
+		),
+	)
+
+	return b.SendMessage(user.ChatID, text, keyboard)
+}
+
+// handleGeminiModelSelect показывает выбор модели
+func (b *Bot) handleGeminiModelSelect(user *UserState, data string) error {
+	if strings.HasPrefix(data, "gemini_model_") {
+		// Выбор конкретной модели
+		model := strings.TrimPrefix(data, "gemini_model_")
+		user.GeminiModel = model
+
+		description := gemini.GetModelDescription(model)
+		text := fmt.Sprintf("✅ **Модель изменена!**\n\n🧠 Выбрана: %s\n%s", model, description)
+
+		keyboard := tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("💬 Попробовать", "gemini_chat"),
+				tgbotapi.NewInlineKeyboardButtonData("🔙 Назад", "gemini"),
+			),
+		)
+
+		return b.SendMessage(user.ChatID, text, keyboard)
+	}
+
+	// Показ списка моделей
+	text := "🧠 *Выберите модель Gemini:*\n\n"
+	var keyboard [][]tgbotapi.InlineKeyboardButton
+
+	for _, model := range gemini.GetAvailableModels() {
+		description := gemini.GetModelDescription(model)
+		current := ""
+		if model == user.GeminiModel {
+			current = " ✅"
+		}
+
+		buttonText := fmt.Sprintf("%s%s", model, current)
+		callbackData := fmt.Sprintf("gemini_model_%s", model)
+
+		button := tgbotapi.NewInlineKeyboardButtonData(buttonText, callbackData)
+		keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{button})
+
+		text += fmt.Sprintf("%s\n", description)
+	}
+
+	keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
+		tgbotapi.NewInlineKeyboardButtonData("🔙 Назад", "gemini"),
+	})
+
+	return b.SendMessage(user.ChatID, text, tgbotapi.NewInlineKeyboardMarkup(keyboard...))
+}
+
+// handleGeminiContextSelect обрабатывает выбор контекста
+func (b *Bot) handleGeminiContextSelect(user *UserState, data string) error {
+	context := ""
+	contextName := ""
+
+	switch data {
+	case "gemini_context_homework":
+		context = "Ты помощник по домашнему заданию. Помоги найти информацию, объясни сложные темы, предложи ресурсы для изучения."
+		contextName = "Помощь с домашним заданием"
+	case "gemini_context_explain":
+		context = "Ты учитель-объяснитель. Объясни тему простым языком, приведи примеры, дай ссылки на полезные видео и материалы."
+		contextName = "Объяснение темы"
+	default:
+		context = "Ты помощник ученика. Отвечай на вопросы, помогай с учебой."
+		contextName = "Общий чат"
+	}
+
+	user.GeminiContext = context
+	user.State = "gemini_chat"
+
+	text := fmt.Sprintf("🤖 **%s**\n\n💭 Введите ваш вопрос:", contextName)
+
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("🔙 Назад", "gemini"),
+		),
+	)
+
+	return b.SendMessage(user.ChatID, text, keyboard)
+}
+
+// handleGeminiChatStart начинает чат с Gemini
+func (b *Bot) handleGeminiChatStart(user *UserState) error {
+	if user.GeminiAPIKey == "" {
+		return b.SendMessage(user.ChatID, "❌ Сначала настройте API ключ через /gemini_setup", nil)
+	}
+
+	user.State = "gemini_chat"
+	user.GeminiContext = "Ты помощник ученика. Отвечай на вопросы, помогай с учебой."
+
+	text := "🤖 **Чат с Gemini AI**\n\n💭 Задайте ваш вопрос:\n\n" +
+		"*Примеры:*\n" +
+		"• Объясни что такое квадратные уравнения\n" +
+		"• Найди информацию о Великой Отечественной войне\n" +
+		"• Помоги решить задачу по физике\n" +
+		"• Дай ссылки на видео по алгебре"
+
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("🔙 Назад", "gemini"),
+		),
+	)
+
+	return b.SendMessage(user.ChatID, text, keyboard)
+}
+
+// handleGeminiChat обрабатывает сообщения в чате с Gemini
+func (b *Bot) handleGeminiChat(user *UserState, message string) error {
+	if user.GeminiAPIKey == "" {
+		return b.SendMessage(user.ChatID, "❌ API ключ не настроен. Используйте /gemini_setup", nil)
+	}
+
+	// Отправляем сообщение о том, что обрабатываем запрос
+	_ = b.SendMessage(user.ChatID, "🤔 Gemini думает...", nil)
+
+	// Создаем клиент Gemini
+	client := gemini.NewClient(user.GeminiAPIKey, user.GeminiModel)
+
+	// Отправляем сообщение в Gemini
+	response, err := client.SendMessage(message, user.GeminiContext)
+	if err != nil {
+		user.State = "idle"
+		return b.SendMessage(user.ChatID, fmt.Sprintf("❌ Ошибка Gemini: %v", err), nil)
+	}
+
+	// Ограничиваем длину ответа (Telegram ограничивает до 4096 символов)
+	if len(response) > 3900 {
+		response = response[:3900] + "\n\n... (ответ обрезан)"
+	}
+
+	text := fmt.Sprintf("🤖 **Gemini AI:**\n\n%s", response)
+
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("💬 Продолжить чат", "gemini_chat"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("🔙 Меню Gemini", "gemini"),
+			tgbotapi.NewInlineKeyboardButtonData("🏠 Главное меню", "start"),
+		),
+	)
+
+	return b.SendMessage(user.ChatID, text, keyboard)
+}
+
+// handleGeminiHelp показывает инструкцию по использованию Gemini
+func (b *Bot) handleGeminiHelp(user *UserState) error {
+	text := "📖 **Инструкция по использованию Gemini AI**\n\n" +
+		"🔧 **Настройка:**\n" +
+		"1. Перейдите на [Google AI Studio](https://aistudio.google.com/)\n" +
+		"2. Войдите в Google аккаунт\n" +
+		"3. Нажмите «Get API key»\n" +
+		"4. Создайте новый проект или выберите существующий\n" +
+		"5. Создайте API ключ\n" +
+		"6. Скопируйте ключ и вставьте в бота\n\n" +
+		"🤖 **Возможности:**\n" +
+		"• Помощь с домашним заданием\n" +
+		"• Объяснение сложных тем\n" +
+		"• Поиск учебных материалов\n" +
+		"• Ссылки на обучающие видео\n" +
+		"• Решение задач и примеров\n\n" +
+		"💡 **Примеры вопросов:**\n" +
+		"• «Объясни теорему Пифагора»\n" +
+		"• «Найди видео про квадратные уравнения»\n" +
+		"• «Помоги с задачей по химии»\n" +
+		"• «Что такое митоз в биологии?»"
+
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("🔧 Настроить API", "gemini_setup"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("🔙 Назад", "gemini"),
+		),
+	)
+
+	return b.SendMessage(user.ChatID, text, keyboard)
+}
+
+// handleGeminiReset сбрасывает настройки Gemini
+func (b *Bot) handleGeminiReset(user *UserState) error {
+	user.GeminiAPIKey = ""
+	user.GeminiModel = ""
+	user.GeminiContext = ""
+	user.State = "idle"
+
+	text := "🗑 **Настройки Gemini сброшены**\n\n" +
+		"Все данные удалены. Для повторного использования необходимо заново настроить API ключ."
+
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("🔧 Настроить заново", "gemini_setup"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("🏠 Главное меню", "start"),
+		),
+	)
+
+	return b.SendMessage(user.ChatID, text, keyboard)
+}
+
+// min возвращает минимальное из двух чисел
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+</replit_final_file>

@@ -8,7 +8,7 @@ import (
 // UserState представляет состояние пользователя
 type UserState struct {
         ChatID       int64
-        State        string // "idle", "auth_waiting", "message_compose", "week_select"
+        State        string // "idle", "auth_waiting", "message_compose", "week_select", "gemini_api_setup", "gemini_chat"
         AuthStep     int    // 0 - не авторизован, 1 - логин, 2 - пароль
         TempLogin    string
         TempPassword string
@@ -16,6 +16,9 @@ type UserState struct {
         Client       *eljur.Client
         CurrentWeek  string
         CurrentPeriod string
+        GeminiAPIKey string // API ключ для Gemini
+        GeminiModel  string // Выбранная модель Gemini
+        GeminiContext string // Контекст для Gemini (домашнее задание и т.д.)
 }
 
 // Bot представляет основную структуру бота
