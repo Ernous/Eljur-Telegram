@@ -1,4 +1,3 @@
-
 package gemini
 
 import (
@@ -123,7 +122,9 @@ func (c *Client) SendMessage(message string, context string) (string, error) {
 
 // ValidateAPIKey проверяет валидность API ключа
 func (c *Client) ValidateAPIKey() error {
-	_, err := c.SendMessage("Привет! Это тестовое сообщение для проверки API ключа.", "")
+	// Проверяем валидность ключа
+	testClient := NewClient(c.apiKey, "gemini-2.0-flash-exp")
+	_, err := testClient.SendMessage("Привет! Это тестовое сообщение для проверки API ключа.", "")
 	return err
 }
 
@@ -133,6 +134,9 @@ func GetAvailableModels() []string {
 		"gemini-1.5-flash",
 		"gemini-1.5-pro",
 		"gemini-1.0-pro",
+		"gemini-2.0-flash-exp",
+		"gemini-2.5-pro",
+		"gemini-2.5-flash",
 	}
 }
 
@@ -142,8 +146,11 @@ func GetModelDescription(model string) string {
 		"gemini-1.5-flash": "🚀 Быстрая модель - оптимальна для простых запросов",
 		"gemini-1.5-pro":   "🧠 Продвинутая модель - лучше для сложных задач",
 		"gemini-1.0-pro":   "⚡ Стандартная модель - баланс скорости и качества",
+		"gemini-2.0-flash-exp": "✨ Новейшая модель Gemini 2.0 Flash Experimental",
+		"gemini-2.5-pro": "🚀 Продвинутая модель Gemini 2.5 Pro",
+		"gemini-2.5-flash": "⚡ Быстрая модель Gemini 2.5 Flash",
 	}
-	
+
 	if desc, exists := descriptions[model]; exists {
 		return desc
 	}
