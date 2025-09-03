@@ -3,7 +3,7 @@ modules = ["go"]
 expertMode = true
 
 [workflows]
-runButton = "Project"
+runButton = "Start Bot"
 
 [[workflows.workflow]]
 name = "Project"
@@ -24,3 +24,12 @@ args = "go run main.go"
 
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[workflows.workflow]]
+name = "Start Bot"
+author = 37882612
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "go run main.go"

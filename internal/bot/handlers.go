@@ -308,6 +308,7 @@ func (b *Bot) handleWeekSelect(user *UserState, data string) error {
 	}
 
 	// Логируем структуру результата для диагностики
+	fmt.Printf("[DIARY_DEBUG] Полная структура результата: %+v\n", diary.Response.Result)
 	fmt.Printf("[DIARY_DEBUG] Ключи в результате: ")
 	for key := range diary.Response.Result {
 		fmt.Printf("%s ", key)
@@ -333,7 +334,7 @@ func (b *Bot) formatDiary(user *UserState, diary *eljur.DiaryResponse) error {
 		// studentsData должно быть объектом, где ключ - это ID студента
 		if studentsMap, ok := studentsData.(map[string]interface{}); ok {
 			// Проходим по каждому студенту
-			for studentID, studentInfo := range studentsMap {
+			for _, studentInfo := range studentsMap {
 				// studentInfo должно содержать данные студента и его дни
 				if studentData, ok := studentInfo.(map[string]interface{}); ok {
 					
