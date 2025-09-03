@@ -1,2 +1,26 @@
+modules = ["go"]
 [agent]
 expertMode = true
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Info"
+
+[[workflows.workflow]]
+name = "Info"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "echo \"Telegram Bot готов к разработке. Смотрите replit.md для инструкций.\""
+
+[workflows.workflow.metadata]
+outputType = "console"

@@ -1,0 +1,16 @@
+{
+  "functions": {
+    "api/webhook.go": {
+      "runtime": "go1.x"
+    }
+  },
+  "routes": [
+    {
+      "src": "/api/webhook",
+      "dest": "/api/webhook.go"
+    }
+  ],
+  "env": {
+    "TELEGRAM_BOT_TOKEN": "@telegram_bot_token"
+  }
+}
