@@ -7,13 +7,25 @@ import (
         "io"
         "net/http"
         "net/url"
+        "os"
         "time"
 )
 
-const (
-        BaseURL = "https://eljur.gospmr.org/apiv3/"
-        DevKey  = "dd06cf484d85581e1976d93c639deee7"
-)
+// getBaseURL возвращает базовый URL API из переменных окружения
+func getBaseURL() string {
+        if url := os.Getenv("ELJUR_API_URL"); url != "" {
+                return url
+        }
+        return "https://eljur.gospmr.org/apiv3/" // Значение по умолчанию
+}
+
+// getDevKey возвращает ключ разработчика из переменных окружения
+func getDevKey() string {
+        if key := os.Getenv("ELJUR_DEV_KEY"); key != "" {
+                return key
+        }
+        return "dd06cf484d85581e1976d93c639deee7" // Значение по умолчанию
+}
 
 // Client представляет клиент для работы с API Эльжур
 type Client struct {
@@ -246,7 +258,7 @@ func (c *Client) makeRequest(method, endpoint string, params url.Values, data ur
         var req *http.Request
         var err error
 
-        fullURL := BaseURL + endpoint
+        fullURL := getBaseURL() + endpoint
 
         if method == "POST" {
                 req, err = http.NewRequest("POST", fullURL, bytes.NewBufferString(data.Encode()))
@@ -286,7 +298,7 @@ func (c *Client) makeRequest(method, endpoint string, params url.Values, data ur
 // getCommonParams возвращает общие параметры для всех запросов
 func (c *Client) getCommonParams() url.Values {
         params := url.Values{}
-        params.Set("devkey", DevKey)
+        params.Set("devkey", getDevKey())
         params.Set("out_format", "json")
         params.Set("auth_token", c.authToken)
         params.Set("vendor", "eljur")
@@ -296,7 +308,7 @@ func (c *Client) getCommonParams() url.Values {
 // Authenticate выполняет авторизацию пользователя
 func (c *Client) Authenticate(login, password string) error {
         params := url.Values{}
-        params.Set("devkey", DevKey)
+        params.Set("devkey", getDevKey())
         params.Set("out_format", "json")
         params.Set("auth_token", "")
         params.Set("vendor", "eljur")

@@ -92,6 +92,8 @@ go run main.go
 ## Переменные окружения
 
 - `TELEGRAM_BOT_TOKEN` - токен Telegram бота (обязательно)
+- `ELJUR_API_URL` - URL API Эльжур (по умолчанию: https://eljur.gospmr.org/apiv3/)
+- `ELJUR_DEV_KEY` - ключ разработчика Эльжур (по умолчанию: dd06cf484d85581e1976d93c639deee7)
 
 ## Технические детали
 
