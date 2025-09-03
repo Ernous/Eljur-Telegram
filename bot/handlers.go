@@ -531,20 +531,20 @@ func (b *Bot) formatDiary(user *UserState, diary *eljur.DiaryResponse) error {
 				}
 			}
 		}
+
+		if !hasLessons {
+			diaryText.WriteString("📝 Уроков на этой неделе нет")
+		}
+
+		keyboard := tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("🔙 Выбрать другую неделю", "diary"),
+				tgbotapi.NewInlineKeyboardButtonData("🏠 Главное меню", "start"),
+			),
+		)
+
+		return b.SendMessage(user.ChatID, diaryText.String(), keyboard)
 	}
-
-	if !hasLessons {
-		diaryText.WriteString("📝 Уроков на этой неделе нет")
-	}
-
-	keyboard := tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("🔙 Выбрать другую неделю", "diary"),
-			tgbotapi.NewInlineKeyboardButtonData("🏠 Главное меню", "start"),
-		),
-	)
-
-	return b.SendMessage(user.ChatID, diaryText.String(), keyboard)
 }
 
 // isDate проверяет, является ли строка датой в формате YYYYMMDD

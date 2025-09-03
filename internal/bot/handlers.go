@@ -524,28 +524,27 @@ func (b *Bot) formatDiary(user *UserState, diary *eljur.DiaryResponse) error {
 									diaryText.WriteString("\n")
 								}
 							}
+						} else {
+							diaryText.WriteString("📝 Ошибка обработки данных студентов")
 						}
 					}
 				}
-			} else {
-				diaryText.WriteString("📝 Ошибка обработки данных студентов")
 			}
 		}
+
+		if !hasLessons {
+			diaryText.WriteString("📝 Уроков на этой неделе нет")
+		}
+
+		keyboard := tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("🔙 Выбрать другую неделю", "diary"),
+				tgbotapi.NewInlineKeyboardButtonData("🏠 Главное меню", "start"),
+			),
+		)
+
+		return b.SendMessage(user.ChatID, diaryText.String(), keyboard)
 	}
-
-	if !hasLessons {
-		diaryText.WriteString("📝 Уроков на этой неделе нет")
-	}
-
-	keyboard := tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("🔙 Выбрать другую неделю", "diary"),
-			tgbotapi.NewInlineKeyboardButtonData("🏠 Главное меню", "start"),
-		),
-	)
-
-	return b.SendMessage(user.ChatID, diaryText.String(), keyboard)
-}
 
 // isDate проверяет, является ли строка датой в формате YYYYMMDD
 func isDate(s string) bool {
