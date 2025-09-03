@@ -9,10 +9,5 @@
       "src": "/api/webhook",
       "dest": "/api/webhook.go"
     }
-  ],
-  "env": {
-    "TELEGRAM_BOT_TOKEN": "@telegram_bot_token",
-    "ELJUR_API_URL": "@eljur_api_url",
-    "ELJUR_DEV_KEY": "@eljur_dev_key"
-  }
+  ]
 }
