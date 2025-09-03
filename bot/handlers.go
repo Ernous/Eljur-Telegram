@@ -545,7 +545,6 @@ func (b *Bot) formatDiary(user *UserState, diary *eljur.DiaryResponse) error {
 
 		return b.SendMessage(user.ChatID, diaryText.String(), keyboard)
 	}
-}
 
 // isDate проверяет, является ли строка датой в формате YYYYMMDD
 func isDate(s string) bool {
@@ -639,8 +638,4 @@ func (b *Bot) handleMessageAction(user *UserState, action string) error {
 	case "msg_compose":
 		return b.startComposeMessage(user)
 	default:
-		return b.SendMessage(user.ChatID, "❌ Неизвестное действие", nil)
-	}
-}
-
-// 
+		return b.SendMessage(user.ChatID, "❌ Неизвестное действие", 
