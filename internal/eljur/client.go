@@ -224,9 +224,7 @@ type ReceiversResponse struct {
 	Response struct {
 		State int `json:"state"`
 		Error string `json:"error,omitempty"`
-		Result struct {
-			Receivers []Receiver `json:"receivers"`
-		} `json:"result,omitempty"`
+		Result map[string]interface{} `json:"result,omitempty"`
 	} `json:"response"`
 }
 
@@ -735,8 +733,11 @@ func (c *Client) GetMessageReceivers() (*ReceiversResponse, error) {
 
 	var receiversResp ReceiversResponse
 	if err := json.Unmarshal(body, &receiversResp); err != nil {
+		log.Printf("[RECEIVERS] Ошибка парсинга JSON: %v", err)
 		return nil, fmt.Errorf("ошибка парсинга JSON: %w", err)
 	}
+
+	log.Printf("[RECEIVERS] Разобранный ответ: %+v", receiversResp)
 
 	if receiversResp.Response.State != 200 {
 		return nil, fmt.Errorf("ошибка API: %s", receiversResp.Response.Error)

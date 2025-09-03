@@ -760,23 +760,72 @@ func (b *Bot) startComposeMessage(user *UserState) error {
 		return b.SendMessage(user.ChatID, fmt.Sprintf("❌ Ошибка получения получателей: %v", err), nil)
 	}
 
-	if len(receivers.Response.Result.Receivers) == 0 {
-		return b.SendMessage(user.ChatID, "❌ Нет доступных получателей", nil)
-	}
-
 	text := "✍️ *Написать сообщение*\n\nВыберите получателя:"
 	var keyboard [][]tgbotapi.InlineKeyboardButton
+	receiversFound := false
 
-	for i, receiver := range receivers.Response.Result.Receivers {
-		if i >= 20 { // Показываем максимум 20 получателей
-			break
+	// Проверяем различные варианты структуры ответа
+	result := receivers.Response.Result
+	
+	// Вариант 1: receivers в корне result
+	if receiversData, ok := result["receivers"]; ok {
+		if receiversArray, ok := receiversData.([]interface{}); ok {
+			for i, receiverData := range receiversArray {
+				if i >= 20 { // Показываем максимум 20 получателей
+					break
+				}
+				
+				if receiver, ok := receiverData.(map[string]interface{}); ok {
+					id := fmt.Sprintf("%v", receiver["id"])
+					name := fmt.Sprintf("%v", receiver["name"])
+					
+					buttonText := fmt.Sprintf("👤 %s", name)
+					callbackData := fmt.Sprintf("compose_to_%s", id)
+					
+					button := tgbotapi.NewInlineKeyboardButtonData(buttonText, callbackData)
+					keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{button})
+					receiversFound = true
+				}
+			}
 		}
+	}
+	
+	// Вариант 2: получатели могут быть в другом формате
+	if !receiversFound {
+		// Пробуем найти получателей в других полях result
+		for key, value := range result {
+			if array, ok := value.([]interface{}); ok && len(array) > 0 {
+				// Проверяем первый элемент массива
+				if first, ok := array[0].(map[string]interface{}); ok {
+					if _, hasID := first["id"]; hasID {
+						if _, hasName := first["name"]; hasName {
+							// Это похоже на список получателей
+							for i, receiverData := range array {
+								if i >= 20 {
+									break
+								}
+								if receiver, ok := receiverData.(map[string]interface{}); ok {
+									id := fmt.Sprintf("%v", receiver["id"])
+									name := fmt.Sprintf("%v", receiver["name"])
+									
+									buttonText := fmt.Sprintf("👤 %s", name)
+									callbackData := fmt.Sprintf("compose_to_%s", id)
+									
+									button := tgbotapi.NewInlineKeyboardButtonData(buttonText, callbackData)
+									keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{button})
+									receiversFound = true
+								}
+							}
+							break
+						}
+					}
+				}
+			}
+		}
+	}
 
-		buttonText := fmt.Sprintf("👤 %s", receiver.Name)
-		callbackData := fmt.Sprintf("compose_to_%s", receiver.ID)
-
-		button := tgbotapi.NewInlineKeyboardButtonData(buttonText, callbackData)
-		keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{button})
+	if !receiversFound {
+		return b.SendMessage(user.ChatID, "❌ Нет доступных получателей", nil)
 	}
 
 	keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
@@ -819,10 +868,20 @@ func (b *Bot) handleMessageText(user *UserState, text string) error {
 	receivers, err := user.Client.GetMessageReceivers()
 	recipientName := recipientID
 	if err == nil {
-		for _, receiver := range receivers.Response.Result.Receivers {
-			if receiver.ID == recipientID {
-				recipientName = receiver.Name
-				break
+		result := receivers.Response.Result
+		
+		// Ищем получателя в списке
+		if receiversData, ok := result["receivers"]; ok {
+			if receiversArray, ok := receiversData.([]interface{}); ok {
+				for _, receiverData := range receiversArray {
+					if receiver, ok := receiverData.(map[string]interface{}); ok {
+						id := fmt.Sprintf("%v", receiver["id"])
+						if id == recipientID {
+							recipientName = fmt.Sprintf("%v", receiver["name"])
+							break
+						}
+					}
+				}
 			}
 		}
 	}
