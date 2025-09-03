@@ -29,7 +29,7 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
 
         // Получаем токен бота из переменных окружения
         botToken := os.Getenv("TELEGRAM_BOT_TOKEN")
-        if botToken == "" {
+        diaryBot, err := bot.NewBot(botToken)
                 log.Println("TELEGRAM_BOT_TOKEN не установлен")
                 http.Error(w, "Bot token not configured", http.StatusInternalServerError)
                 return
