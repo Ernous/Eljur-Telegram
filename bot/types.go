@@ -64,8 +64,6 @@ func (b *Bot) SendMessage(chatID int64, text string, keyboard interface{}) error
 
 	if keyboard != nil {
 		if kb, ok := keyboard.(tgbotapi.InlineKeyboardMarkup); ok {
-			msg.ReplyMarkup = &kb
-		} else if kb, ok := keyboard.(*tgbotapi.InlineKeyboardMarkup); ok {
 			msg.ReplyMarkup = kb
 		}
 	}
@@ -81,8 +79,6 @@ func (b *Bot) EditMessage(chatID int64, messageID int, text string, keyboard int
 
 	if keyboard != nil {
 		if kb, ok := keyboard.(tgbotapi.InlineKeyboardMarkup); ok {
-			msg.ReplyMarkup = &kb
-		} else if kb, ok := keyboard.(*tgbotapi.InlineKeyboardMarkup); ok {
 			msg.ReplyMarkup = kb
 		}
 	}
