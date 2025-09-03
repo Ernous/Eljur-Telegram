@@ -14,6 +14,7 @@ import (
 
 	"school-diary-bot/bot"
 	"school-diary-bot/bot/eljur"
+
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
@@ -53,7 +54,7 @@ func validateEnvironment() error {
 // Handler обрабатывает входящие webhook от Telegram (с улучшенной безопасностью)
 func Handler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("[WEBHOOK] Received %s request from %s", r.Method, r.RemoteAddr)
-	
+
 	// Устанавливаем CORS заголовки для безопасности
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST")
@@ -128,7 +129,8 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		} else {
 			log.Printf("[WEBHOOK] Successfully processed message from user %d", update.Message.From.ID)
 		}
-		// Сохраняем состояние пользователя
+		// Сохраняем состояние пользователя после обработки
+		userState = diaryBot.GetUserStateServerless(update.Message.Chat.ID)
 		diaryBot.SaveUserStateServerless(userState)
 	} else if update.CallbackQuery != nil {
 		log.Printf("[WEBHOOK] Processing callback query from user %d: %s", update.CallbackQuery.From.ID, update.CallbackQuery.Data)
@@ -139,7 +141,8 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		} else {
 			log.Printf("[WEBHOOK] Successfully processed callback from user %d", update.CallbackQuery.From.ID)
 		}
-		// Сохраняем состояние пользователя
+		// Сохраняем состояние пользователя после обработки
+		userState = diaryBot.GetUserStateServerless(update.CallbackQuery.Message.Chat.ID)
 		diaryBot.SaveUserStateServerless(userState)
 	} else {
 		log.Printf("[WEBHOOK] Received unsupported update type: %+v", update)
@@ -150,7 +153,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	if processingError != nil {
 		log.Printf("[WEBHOOK] Responding with processing error: %v", processingError)
 		response := map[string]string{
-			"status": "OK",
+			"status":  "OK",
 			"message": "Request processed with errors",
 		}
 		if jsonResp, err := json.Marshal(response); err == nil {

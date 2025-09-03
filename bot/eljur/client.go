@@ -29,12 +29,13 @@ func getDevKey() string {
 
 // Client представляет клиент для работы с API Эльжур
 type Client struct {
-	httpClient  *http.Client
-	authToken   string
-	studentID   string
+	httpClient   *http.Client
+	authToken    string
+	userLogin    string
+	studentID    string
 	studentClass string
-	domain      string
-	cookies     map[string]string
+	domain       string
+	cookies      map[string]string
 }
 
 // NewClient создает новый клиент
@@ -61,8 +62,8 @@ func ValidateConfig() error {
 // Response представляет базовую структуру ответа API
 type Response struct {
 	Response struct {
-		State int         `json:"state"`
-		Error string      `json:"error,omitempty"`
+		State  int         `json:"state"`
+		Error  string      `json:"error,omitempty"`
 		Result interface{} `json:"result,omitempty"`
 	} `json:"response"`
 }
@@ -70,8 +71,8 @@ type Response struct {
 // AuthResponse представляет ответ на запрос авторизации
 type AuthResponse struct {
 	Response struct {
-		State int `json:"state"`
-		Error string `json:"error,omitempty"`
+		State  int    `json:"state"`
+		Error  string `json:"error,omitempty"`
 		Result struct {
 			Token string `json:"token"`
 		} `json:"result,omitempty"`
@@ -81,8 +82,8 @@ type AuthResponse struct {
 // RulesResponse представляет ответ на запрос правил пользователя
 type RulesResponse struct {
 	Response struct {
-		State int `json:"state"`
-		Error string `json:"error,omitempty"`
+		State  int    `json:"state"`
+		Error  string `json:"error,omitempty"`
 		Result struct {
 			ID        interface{} `json:"id"`
 			Name      interface{} `json:"name"`
@@ -98,12 +99,12 @@ type RulesResponse struct {
 
 // Period представляет учебный период
 type Period struct {
-	Name      string `json:"name"`
-	FullName  string `json:"fullname"`
-	Disabled  bool   `json:"disabled"`
-	Start     string `json:"start"`
-	End       string `json:"end"`
-	Weeks     []Week `json:"weeks,omitempty"`
+	Name     string `json:"name"`
+	FullName string `json:"fullname"`
+	Disabled bool   `json:"disabled"`
+	Start    string `json:"start"`
+	End      string `json:"end"`
+	Weeks    []Week `json:"weeks,omitempty"`
 }
 
 // Week представляет учебную неделю
@@ -116,13 +117,13 @@ type Week struct {
 // PeriodsResponse представляет ответ на запрос периодов
 type PeriodsResponse struct {
 	Response struct {
-		State int `json:"state"`
-		Error string `json:"error,omitempty"`
+		State  int    `json:"state"`
+		Error  string `json:"error,omitempty"`
 		Result struct {
 			Students []struct {
 				Name    interface{} `json:"name"`
-				Title   string     `json:"title"`
-				Periods []Period   `json:"periods"`
+				Title   string      `json:"title"`
+				Periods []Period    `json:"periods"`
 			} `json:"students"`
 		} `json:"result,omitempty"`
 	} `json:"response"`
@@ -165,11 +166,11 @@ type DiaryMark struct {
 
 // Message представляет сообщение
 type Message struct {
-	ID       string `json:"id"`
-	Subject  string `json:"subject"`
-	Text     string `json:"text"`
+	ID        string `json:"id"`
+	Subject   string `json:"subject"`
+	Text      string `json:"text"`
 	ShortText string `json:"short_text"`
-	UserFrom struct {
+	UserFrom  struct {
 		Name       string `json:"name"`
 		LastName   string `json:"lastname"`
 		FirstName  string `json:"firstname"`
@@ -193,8 +194,8 @@ type Message struct {
 // MessagesResponse представляет ответ на запрос сообщений
 type MessagesResponse struct {
 	Response struct {
-		State int `json:"state"`
-		Error string `json:"error,omitempty"`
+		State  int    `json:"state"`
+		Error  string `json:"error,omitempty"`
 		Result struct {
 			Messages []Message `json:"messages"`
 		} `json:"result,omitempty"`
@@ -204,8 +205,8 @@ type MessagesResponse struct {
 // MessageDetailsResponse представляет ответ на запрос деталей сообщения
 type MessageDetailsResponse struct {
 	Response struct {
-		State int `json:"state"`
-		Error string `json:"error,omitempty"`
+		State  int    `json:"state"`
+		Error  string `json:"error,omitempty"`
 		Result struct {
 			Message Message `json:"message"`
 		} `json:"result,omitempty"`
@@ -222,8 +223,8 @@ type Receiver struct {
 // ReceiversResponse представляет ответ на запрос получателей
 type ReceiversResponse struct {
 	Response struct {
-		State int `json:"state"`
-		Error string `json:"error,omitempty"`
+		State  int                    `json:"state"`
+		Error  string                 `json:"error,omitempty"`
 		Result map[string]interface{} `json:"result,omitempty"`
 	} `json:"response"`
 }
@@ -231,8 +232,8 @@ type ReceiversResponse struct {
 // SendMessageResponse представляет ответ на отправку сообщения
 type SendMessageResponse struct {
 	Response struct {
-		State int `json:"state"`
-		Error string `json:"error,omitempty"`
+		State  int    `json:"state"`
+		Error  string `json:"error,omitempty"`
 		Result struct {
 			Success bool   `json:"success"`
 			Message string `json:"message"`
@@ -243,19 +244,19 @@ type SendMessageResponse struct {
 // ScheduleResponse представляет ответ на запрос расписания
 type ScheduleResponse struct {
 	Response struct {
-		State int `json:"state"`
-		Error string `json:"error,omitempty"`
+		State  int    `json:"state"`
+		Error  string `json:"error,omitempty"`
 		Result struct {
 			Students []struct {
 				Name interface{} `json:"name"`
 				Days []struct {
 					Date    string `json:"date"`
 					Lessons []struct {
-						Name     string `json:"name"`
-						Number   int    `json:"number"`
-						Teacher  string `json:"teacher"`
-						Room     string `json:"room"`
-						Time     string `json:"time"`
+						Name    string `json:"name"`
+						Number  int    `json:"number"`
+						Teacher string `json:"teacher"`
+						Room    string `json:"room"`
+						Time    string `json:"time"`
 					} `json:"lessons,omitempty"`
 				} `json:"days,omitempty"`
 			} `json:"students"`
@@ -266,8 +267,8 @@ type ScheduleResponse struct {
 // MarksResponse представляет ответ на запрос оценок
 type MarksResponse struct {
 	Response struct {
-		State int `json:"state"`
-		Error string `json:"error,omitempty"`
+		State  int    `json:"state"`
+		Error  string `json:"error,omitempty"`
 		Result struct {
 			Students []struct {
 				Name     interface{} `json:"name"`
@@ -434,6 +435,7 @@ func (c *Client) Authenticate(login, password string) error {
 	}
 
 	c.authToken = authResp.Response.Result.Token
+	c.userLogin = login
 	tokenPreview := c.authToken
 	if len(tokenPreview) > 10 {
 		tokenPreview = tokenPreview[:10]
@@ -904,7 +906,7 @@ func (c *Client) GetMarks(period int, startDate, endDate string) (*MarksResponse
 
 // GetLogin возвращает логин пользователя (для session management)
 func (c *Client) GetLogin() string {
-	return "" // Не сохраняем логин по соображениям безопасности
+	return c.userLogin
 }
 
 // GetToken возвращает токен аутентификации (для session management)
@@ -917,9 +919,10 @@ func (c *Client) RestoreSession(login, token string) error {
 	if token == "" {
 		return fmt.Errorf("токен не может быть пустым")
 	}
-	
+
 	c.authToken = token
-	
+	c.userLogin = login
+
 	// Проверяем валидность токена запросом getrules
 	return c.getRules()
 }

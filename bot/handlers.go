@@ -139,6 +139,8 @@ func (b *Bot) handleCommands(user *UserState, text string) error {
 
 // handleStart обрабатывает команду /start
 func (b *Bot) handleStart(user *UserState) error {
+	log.Printf("[START] User %d - IsAuthenticated: %v, Login: %s, Token length: %d", user.ChatID, user.Client.IsAuthenticated(), user.Client.GetLogin(), len(user.Client.GetToken()))
+	
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("📚 Дневник", "diary"),

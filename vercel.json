@@ -1,24 +1,14 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/webhook.go",
-      "use": "@vercel/go",
-      "config": {
-        "maxDuration": 10
-      }
+  "functions": {
+    "api/webhook.go": {
+      "maxDuration": 10
     }
-  ],
-  "routes": [
+  },
+  "rewrites": [
     {
-      "src": "/api/webhook",
-      "dest": "/api/webhook.go",
-      "methods": ["POST"]
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/api/webhook.go",
-      "status": 404
+      "source": "/api/webhook",
+      "destination": "/api/webhook.go"
     }
   ]
 }

@@ -12,20 +12,20 @@ import (
 
 // SessionData represents user session data for serverless environment
 type SessionData struct {
-	ChatID        int64             `json:"chat_id"`
-	State         string            `json:"state"`
-	AuthStep      int               `json:"auth_step"`
-	TempLogin     string            `json:"temp_login"`
-	TempPassword  string            `json:"temp_password"`
-	TempRecipient string            `json:"temp_recipient"`
-	CurrentWeek   string            `json:"current_week"`
-	CurrentPeriod string            `json:"current_period"`
-	GeminiAPIKey  string            `json:"gemini_api_key"`
-	GeminiModel   string            `json:"gemini_model"`
-	GeminiContext string            `json:"gemini_context"`
-	CreatedAt     time.Time         `json:"created_at"`
-	LastAccess    time.Time         `json:"last_access"`
-	EljurAuth     *EljurAuthData    `json:"eljur_auth,omitempty"`
+	ChatID        int64          `json:"chat_id"`
+	State         string         `json:"state"`
+	AuthStep      int            `json:"auth_step"`
+	TempLogin     string         `json:"temp_login"`
+	TempPassword  string         `json:"temp_password"`
+	TempRecipient string         `json:"temp_recipient"`
+	CurrentWeek   string         `json:"current_week"`
+	CurrentPeriod string         `json:"current_period"`
+	GeminiAPIKey  string         `json:"gemini_api_key"`
+	GeminiModel   string         `json:"gemini_model"`
+	GeminiContext string         `json:"gemini_context"`
+	CreatedAt     time.Time      `json:"created_at"`
+	LastAccess    time.Time      `json:"last_access"`
+	EljurAuth     *EljurAuthData `json:"eljur_auth,omitempty"`
 }
 
 // EljurAuthData stores authentication information for Eljur
@@ -49,7 +49,7 @@ var globalSessionManager = &SessionManager{
 // GetUserStateServerless gets or creates user state for serverless environment
 func (b *Bot) GetUserStateServerless(chatID int64) *UserState {
 	sessionData := globalSessionManager.GetSession(chatID)
-	
+
 	// Create UserState from session data
 	userState := &UserState{
 		ChatID:        sessionData.ChatID,
@@ -67,13 +67,19 @@ func (b *Bot) GetUserStateServerless(chatID int64) *UserState {
 	}
 
 	// Restore Eljur authentication if available
-	if sessionData.EljurAuth != nil && sessionData.EljurAuth.Login != "" {
+	if sessionData.EljurAuth != nil && sessionData.EljurAuth.Token != "" {
+		log.Printf("Attempting to restore session for user %d: login=%s, token_length=%d", chatID, sessionData.EljurAuth.Login, len(sessionData.EljurAuth.Token))
 		// Restore authentication without exposing sensitive data
 		if err := userState.Client.RestoreSession(sessionData.EljurAuth.Login, sessionData.EljurAuth.Token); err != nil {
 			log.Printf("Failed to restore Eljur session for user %d: %v", chatID, err)
-			// Clear invalid auth data
+			// Clear invalid auth data and save the updated session
 			sessionData.EljurAuth = nil
+			globalSessionManager.SaveSession(sessionData)
+		} else {
+			log.Printf("Successfully restored session for user %d", chatID)
 		}
+	} else {
+		log.Printf("No auth data to restore for user %d", chatID)
 	}
 
 	return userState
@@ -102,6 +108,7 @@ func (b *Bot) SaveUserStateServerless(userState *UserState) {
 			Login: userState.Client.GetLogin(),
 			Token: userState.Client.GetToken(),
 		}
+		log.Printf("Saving auth data for user %d: login=%s, token_length=%d", userState.ChatID, sessionData.EljurAuth.Login, len(sessionData.EljurAuth.Token))
 	}
 
 	globalSessionManager.SaveSession(sessionData)
@@ -150,7 +157,7 @@ func (sm *SessionManager) SaveSession(sessionData *SessionData) {
 // cleanupOldSessions removes sessions older than 24 hours
 func (sm *SessionManager) cleanupOldSessions() {
 	cutoff := time.Now().Add(-24 * time.Hour)
-	
+
 	for chatID, session := range sm.sessions {
 		if session.LastAccess.Before(cutoff) {
 			delete(sm.sessions, chatID)
@@ -163,7 +170,7 @@ func (sm *SessionManager) cleanupOldSessions() {
 func (sm *SessionManager) ClearSession(chatID int64) {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
-	
+
 	delete(sm.sessions, chatID)
 }
 
@@ -177,7 +184,7 @@ func (sm *SessionManager) GetSessionJSON(chatID int64) string {
 			return string(jsonData)
 		}
 	}
-	
+
 	return fmt.Sprintf(`{"error": "Session not found for chat ID %d"}`, chatID)
 }
 
@@ -188,7 +195,7 @@ func (sm *SessionManager) GetStats() map[string]interface{} {
 
 	activeSessions := 0
 	authenticatedSessions := 0
-	
+
 	for _, session := range sm.sessions {
 		activeSessions++
 		if session.EljurAuth != nil && session.EljurAuth.Token != "" {
@@ -199,6 +206,6 @@ func (sm *SessionManager) GetStats() map[string]interface{} {
 	return map[string]interface{}{
 		"total_sessions":         activeSessions,
 		"authenticated_sessions": authenticatedSessions,
-		"last_cleanup":          time.Now().Format(time.RFC3339),
+		"last_cleanup":           time.Now().Format(time.RFC3339),
 	}
 }
