@@ -671,13 +671,29 @@ func (b *Bot) handleReadMessage(user *UserState, data string) error {
 		return b.SendMessage(user.ChatID, "❌ Сообщение не найдено", nil)
 	}
 
-	// log.Printf("[MESSAGE_DETAILS] Полученные детали: %+v", msgDetails.Response.Result)
+	message := msgDetails.Response.Result.Message
 
-	from := msgDetails.Response.Result.From
-	subject := msgDetails.Response.Result.Subject
-	text := msgDetails.Response.Result.Text
-	date := msgDetails.Response.Result.Date
-	to := msgDetails.Response.Result.To
+	// Формируем имя отправителя
+	from := ""
+	if message.UserFrom.FirstName != "" || message.UserFrom.LastName != "" {
+		from = fmt.Sprintf("%s %s %s", message.UserFrom.LastName, message.UserFrom.FirstName, message.UserFrom.MiddleName)
+		from = strings.TrimSpace(from)
+	}
+
+	// Формируем список получателей
+	to := ""
+	if len(message.UserTo) > 0 {
+		var recipients []string
+		for _, user := range message.UserTo {
+			recipient := fmt.Sprintf("%s %s", user.LastName, user.FirstName)
+			recipients = append(recipients, strings.TrimSpace(recipient))
+		}
+		to = strings.Join(recipients, ", ")
+	}
+
+	subject := message.Subject
+	text := message.Text
+	date := message.Date
 
 	if from == "" && to != "" {
 		from = "Вы → " + to
@@ -687,6 +703,11 @@ func (b *Bot) handleReadMessage(user *UserState, data string) error {
 	if subject == "" {
 		subject = "Без темы"
 	}
+	// Очищаем HTML-теги из текста
+	text = strings.ReplaceAll(text, "<br />", "\n")
+	text = strings.ReplaceAll(text, "<br/>", "\n")
+	text = strings.ReplaceAll(text, "<br>", "\n")
+	
 	if text == "" {
 		text = "_Текст сообщения отсутствует_"
 	}

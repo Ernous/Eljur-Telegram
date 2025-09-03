@@ -168,11 +168,26 @@ type Message struct {
 	ID       string `json:"id"`
 	Subject  string `json:"subject"`
 	Text     string `json:"text"`
-	From     string `json:"from"`
-	To       string `json:"to"`
-	Date     string `json:"date"`
-	Read     bool   `json:"read"`
-	Folder   string `json:"folder"`
+	ShortText string `json:"short_text"`
+	UserFrom struct {
+		Name       string `json:"name"`
+		LastName   string `json:"lastname"`
+		FirstName  string `json:"firstname"`
+		MiddleName string `json:"middlename"`
+	} `json:"user_from"`
+	UserTo []struct {
+		Name       string `json:"name"`
+		LastName   string `json:"lastname"`
+		FirstName  string `json:"firstname"`
+		MiddleName string `json:"middlename"`
+	} `json:"user_to"`
+	Files []struct {
+		FileName string `json:"filename"`
+		Link     string `json:"link"`
+	} `json:"files"`
+	Date   string `json:"date"`
+	Read   bool   `json:"read"`
+	Folder string `json:"folder"`
 }
 
 // MessagesResponse представляет ответ на запрос сообщений
@@ -191,7 +206,9 @@ type MessageDetailsResponse struct {
 	Response struct {
 		State int `json:"state"`
 		Error string `json:"error,omitempty"`
-		Result Message `json:"result,omitempty"`
+		Result struct {
+			Message Message `json:"message"`
+		} `json:"result,omitempty"`
 	} `json:"response"`
 }
 
