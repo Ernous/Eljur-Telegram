@@ -7,8 +7,9 @@ import (
 	"time"
 
 	"school-diary-bot/bot/eljur"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"school-diary-bot/internal/gemini"
+
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 // splitMessage умно разбивает текст на части, стараясь не разрывать предложения
@@ -99,6 +100,17 @@ func (b *Bot) HandleMessage(message *tgbotapi.Message) error {
 
 // handleCommands обрабатывает команды бота
 func (b *Bot) handleCommands(user *UserState, text string) error {
+	// Проверяем команды с параметрами
+	if strings.HasPrefix(text, "/login ") {
+		return b.handleLoginWithParams(user, text)
+	}
+	if strings.HasPrefix(text, "/messages send ") {
+		return b.handleMessageSendWithParams(user, text)
+	}
+	if strings.HasPrefix(text, "/gemini ") {
+		return b.handleGeminiWithParams(user, text)
+	}
+
 	switch text {
 	case "/start":
 		return b.handleStart(user)
@@ -162,7 +174,7 @@ func (b *Bot) handleStart(user *UserState) error {
 // handleHelp обрабатывает команду /help
 func (b *Bot) handleHelp(user *UserState) error {
 	helpText := "🤖 <b>Школьный электронный дневник</b>\n\n" +
-		"<b>Доступные команды:</b>\n" +
+		"<b>Основные команды:</b>\n" +
 		"/start - Главное меню\n" +
 		"/login - Авторизация в системе\n" +
 		"/logout - Выход из системы\n" +
@@ -173,13 +185,18 @@ func (b *Bot) handleHelp(user *UserState) error {
 		"/marks - Оценки по предметам\n" +
 		"/gemini - Gemini AI Ассистент\n" +
 		"/help - Эта справка\n\n" +
+		"<b>Быстрые команды:</b>\n" +
+		"/login логин пароль - быстрая авторизация\n" +
+		"/messages send ID \"\u0442\u0435\u043c\u0430\" \"\u0442\u0435\u043a\u0441\u0442\" - быстрая отправка сообщения\n" +
+		"/gemini вопрос - быстрый запрос к AI\n\n" +
+		"<b>Примеры использования:</b>\n" +
+		"<code>/login Ivanov password123</code>\n" +
+		"<code>/messages send 123 \"Вопрос\" \"Привет, как дела?\"</code>\n" +
+		"<code>/gemini Объясни закон Ньютона</code>\n\n" +
 		"<b>Как пользоваться:</b>\n" +
-		"1. Авторизуйтесь с помощью /login\n" +
-		"2. Используйте команды для просмотра информации\n" +
-		"3. Выбирайте недели и периоды для просмотра данных\n\n" +
-		"<b>Пример авторизации:</b>\n" +
-		"Логин: <code>Ivanov</code>\n" +
-		"Пароль: <code>password123</code>"
+		"1. Авторизуйтесь любым способом\n" +
+		"2. Используйте команды или кнопки меню\n" +
+		"3. Выбирайте недели и периоды для просмотра данных"
 
 	return b.SendMessage(user.ChatID, helpText, nil)
 }
@@ -194,6 +211,180 @@ func (b *Bot) handleLogin(user *UserState) error {
 	user.AuthStep = 1
 
 	return b.SendMessage(user.ChatID, "🔐 <b>Авторизация</b>\n\nВведите ваш логин:\n\n<i>Пример: Ivanov</i>", nil)
+}
+
+// handleLoginWithParams обрабатывает авторизацию с параметрами /login username password
+func (b *Bot) handleLoginWithParams(user *UserState, text string) error {
+	if user.Client.IsAuthenticated() {
+		return b.SendMessage(user.ChatID, "✅ Вы уже авторизованы! Используйте /logout для выхода.", nil)
+	}
+
+	// Разбираем команду на части
+	parts := strings.Fields(text)
+	if len(parts) != 3 {
+		return b.SendMessage(user.ChatID, "❌ Неверный формат команды.\n\n<b>Используйте:</b>\n/login логин пароль\n\n<b>Пример:</b>\n/login Ivanov password123\n\nИли используйте /login для пошаговой авторизации.", nil)
+	}
+
+	username := strings.TrimSpace(parts[1])
+	password := strings.TrimSpace(parts[2])
+
+	if username == "" || password == "" {
+		return b.SendMessage(user.ChatID, "❌ Логин и пароль не могут быть пустыми.", nil)
+	}
+
+	// Отправляем сообщение о процессе авторизации
+	b.SendMessage(user.ChatID, "🔄 Проверяем данные авторизации...", nil)
+
+	// Выполняем авторизацию
+	err := user.Client.Authenticate(username, password)
+
+	if err != nil {
+		return b.SendMessage(user.ChatID, fmt.Sprintf("❌ Ошибка авторизации: %v\n\nПроверьте правильность логина и пароля.", err), nil)
+	}
+
+	// Сохраняем состояние после успешной авторизации
+	b.SaveUserStateIfNeeded(user)
+
+	// После успешной авторизации показываем главное меню
+	_ = b.SendMessage(user.ChatID, "✅ Авторизация успешна! Теперь вам доступны все функции дневника.", nil)
+	return b.handleStart(user)
+}
+
+// handleMessageSendWithParams обрабатывает отправку сообщения с параметрами
+func (b *Bot) handleMessageSendWithParams(user *UserState, text string) error {
+	if !user.Client.IsAuthenticated() {
+		return b.SendMessage(user.ChatID, "⚠️ Сначала необходимо авторизоваться через /login", nil)
+	}
+
+	// Убираем "/messages send " из начала команды
+	params := strings.TrimPrefix(text, "/messages send ")
+
+	// Парсим параметры: recipientID "subject" "message text"
+	// Простой парсинг по пробелам и кавычкам
+	parts := []string{}
+	current := ""
+	inQuotes := false
+
+	for i, r := range params {
+		if r == '"' {
+			inQuotes = !inQuotes
+		} else if r == ' ' && !inQuotes {
+			if current != "" {
+				parts = append(parts, current)
+				current = ""
+			}
+		} else {
+			current += string(r)
+		}
+
+		// Добавляем последнюю часть
+		if i == len(params)-1 && current != "" {
+			parts = append(parts, current)
+		}
+	}
+
+	if len(parts) < 3 {
+		return b.SendMessage(user.ChatID, "❌ Неверный формат команды.\n\n<b>Используйте:</b>\n/messages send получатель_ID \"\u0442\u0435\u043c\u0430\" \"\u0442\u0435\u043a\u0441\u0442 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u044f\"\n\n<b>Пример:</b>\n/messages send 123 \"Вопрос по уроку\" \"Привет! Можно ли получить домашнее задание?\"", nil)
+	}
+
+	recipientID := strings.TrimSpace(parts[0])
+	subject := strings.TrimSpace(parts[1])
+	messageText := strings.TrimSpace(parts[2])
+
+	if recipientID == "" || subject == "" || messageText == "" {
+		return b.SendMessage(user.ChatID, "❌ Все параметры обязательны.", nil)
+	}
+
+	// Отправляем сообщение
+	b.SendMessage(user.ChatID, "📤 Отправляем сообщение...", nil)
+
+	recipients := []string{recipientID}
+	_, err := user.Client.SendMessage(recipients, subject, messageText)
+	if err != nil {
+		return b.SendMessage(user.ChatID, fmt.Sprintf("❌ Ошибка отправки сообщения: %v", err), nil)
+	}
+
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("✉️ Написать еще", "msg_compose"),
+			tgbotapi.NewInlineKeyboardButtonData("📥 К сообщениям", "messages"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("🏠 Главное меню", "start"),
+		),
+	)
+
+	return b.SendMessage(user.ChatID, fmt.Sprintf("✅ <b>Сообщение отправлено!</b>\n\n👤 Получатель: %s\n📝 Тема: %s", recipientID, subject), keyboard)
+}
+
+// handleGeminiWithParams обрабатывает запрос к Gemini AI с параметрами
+func (b *Bot) handleGeminiWithParams(user *UserState, text string) error {
+	// Проверяем, настроен ли Gemini
+	if user.GeminiAPIKey == "" {
+		return b.SendMessage(user.ChatID, "⚠️ Сначала необходимо настроить Gemini AI через /gemini", nil)
+	}
+
+	// Убираем "/gemini " из начала команды
+	prompt := strings.TrimPrefix(text, "/gemini ")
+	prompt = strings.TrimSpace(prompt)
+
+	if prompt == "" {
+		return b.SendMessage(user.ChatID, "❌ Пустой запрос.\n\n<b>Используйте:</b>\n/gemini ваш вопрос\n\n<b>Пример:</b>\n/gemini Объясни мне закон Ньютона", nil)
+	}
+
+	// Отправляем сообщение о обработке
+	processingMsg := tgbotapi.NewMessage(user.ChatID, "🤖 Обрабатываем ваш запрос...")
+	sentMsg, _ := b.API.Send(processingMsg)
+
+	// Создаем клиент Gemini
+	client := gemini.NewClient(user.GeminiAPIKey, user.GeminiModel)
+
+	// Отправляем запрос к Gemini
+	response, err := client.SendMessage(prompt, user.GeminiContext)
+
+	// Удаляем сообщение "думает"
+	if sentMsg.MessageID != 0 {
+		deleteMsg := tgbotapi.NewDeleteMessage(user.ChatID, sentMsg.MessageID)
+		b.API.Send(deleteMsg)
+	}
+	if err != nil {
+		return b.SendMessage(user.ChatID, fmt.Sprintf("❌ Ошибка Gemini AI: %v", err), nil)
+	}
+
+	// Ограничиваем длину ответа
+	maxLength := 3900
+	if len(response) > maxLength {
+		response = response[:maxLength] + "...\n\n[Ответ сокращен]"
+	}
+
+	// Очищаем ответ от потенциально проблемных символов
+	response = strings.ReplaceAll(response, "\u0000", "")
+	response = strings.ReplaceAll(response, "`", "'")   // Заменяем обратные кавычки
+	response = strings.ReplaceAll(response, "*", "\\*") // Экранируем звездочки
+	response = strings.ReplaceAll(response, "_", "\\_") // Экранируем подчеркивания
+	response = strings.ReplaceAll(response, "[", "\\[") // Экранируем квадратные скобки
+	response = strings.ReplaceAll(response, "]", "\\]")
+	response = strings.TrimSpace(response)
+
+	if response == "" {
+		return b.SendMessage(user.ChatID, "❌ Gemini вернул пустой ответ. Попробуйте переформулировать вопрос.", nil)
+	}
+
+	// Сохраняем состояние
+	b.SaveUserStateIfNeeded(user)
+
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("💬 Продолжить чат", "gemini_chat"),
+			tgbotapi.NewInlineKeyboardButtonData("🤖 Gemini меню", "gemini"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("🏠 Главное меню", "start"),
+		),
+	)
+
+	// Отправляем ответ
+	return b.SendMessage(user.ChatID, fmt.Sprintf("🤖 <b>Gemini AI:</b>\n\n%s", response), keyboard)
 }
 
 // handleLogout обрабатывает выход из системы
@@ -239,7 +430,7 @@ func (b *Bot) handleAuthInput(user *UserState, text string) error {
 
 		// Сохраняем состояние после успешной авторизации
 		b.SaveUserStateIfNeeded(user)
-		
+
 		// После успешной авторизации показываем главное меню
 		_ = b.SendMessage(user.ChatID, "✅ Авторизация успешна! Теперь вам доступны все функции дневника.", nil)
 		return b.handleStart(user)
@@ -337,7 +528,7 @@ func (b *Bot) handleDiary(user *UserState) error {
 func (b *Bot) showWeekSelection(user *UserState, period eljur.Period) error {
 	var keyboard [][]tgbotapi.InlineKeyboardButton
 
-	text := fmt.Sprintf("📅 *Выберите неделю из %s:*\n\n", period.FullName)
+	text := fmt.Sprintf("📅 <b>Выберите неделю из %s:</b>\n\n", period.FullName)
 
 	for i, week := range period.Weeks {
 		if i%2 == 0 {
@@ -391,7 +582,7 @@ func (b *Bot) handleWeekSelect(user *UserState, data string) error {
 // formatDiary форматирует и отправляет дневник
 func (b *Bot) formatDiary(user *UserState, diary *eljur.DiaryResponse) error {
 	var diaryText strings.Builder
-	diaryText.WriteString("📚 *Дневник за выбранную неделю:*\n\n")
+	diaryText.WriteString("📚 <b>Дневник за выбранную неделю:</b>\n\n")
 
 	result := diary.Response.Result
 	hasLessons := false
@@ -443,7 +634,7 @@ func (b *Bot) formatDiary(user *UserState, diary *eljur.DiaryResponse) error {
 										title = formatDateRu(dateKey)
 									}
 
-									diaryText.WriteString(fmt.Sprintf("📅 *%s*\n", title))
+									diaryText.WriteString(fmt.Sprintf("📅 <b>%s</b>\n", title))
 
 									// Проверяем есть ли праздник
 									if alert, hasAlert := dayData["alert"]; hasAlert {
@@ -599,7 +790,7 @@ func (b *Bot) handlePeriods(user *UserState) error {
 	}
 
 	student := periods.Response.Result.Students[0]
-	text := "📅 *Учебные периоды:*\n\n"
+	text := "📅 <b>Учебные периоды:</b>\n\n"
 
 	for _, period := range student.Periods {
 		status := "✅"
@@ -607,7 +798,7 @@ func (b *Bot) handlePeriods(user *UserState) error {
 			status = "⏸"
 		}
 
-		text += fmt.Sprintf("%s *%s*\n", status, period.FullName)
+		text += fmt.Sprintf("%s <b>%s</b>\n", status, period.FullName)
 		startFormatted := formatDateRu(period.Start)
 		endFormatted := formatDateRu(period.End)
 		text += fmt.Sprintf("   📅 %s - %s\n", startFormatted, endFormatted)
@@ -642,7 +833,7 @@ func (b *Bot) handleMessages(user *UserState) error {
 		),
 	)
 
-	return b.SendMessage(user.ChatID, "💬 *Сообщения*\n\nВыберите действие:", keyboard)
+	return b.SendMessage(user.ChatID, "💬 <b>Сообщения</b>\n\nВыберите действие:", keyboard)
 }
 
 // handleMessageAction обрабатывает действия с сообщениями
@@ -671,11 +862,11 @@ func (b *Bot) showMessages(user *UserState, folder string) error {
 		folderName = "📤 Отправленные"
 	}
 
-	text := fmt.Sprintf("💬 *%s сообщения:*\n\nНажмите на сообщение для просмотра:", folderName)
+	text := fmt.Sprintf("💬 <b>%s сообщения:</b>\n\nНажмите на сообщение для просмотра:", folderName)
 	var keyboard [][]tgbotapi.InlineKeyboardButton
 
 	if len(messages.Response.Result.Messages) == 0 {
-		text += "\n\n_Сообщений нет_"
+		text += "\n\n<i>Сообщений нет</i>"
 	} else {
 		for i, msg := range messages.Response.Result.Messages {
 			if i >= 15 { // Показываем только первые 15 сообщений
@@ -734,7 +925,7 @@ func (b *Bot) handleClearChat(user *UserState) error {
 		_ = b.SendMessage(user.ChatID, ".", nil)
 	}
 
-	return b.SendMessage(user.ChatID, "🗑 *Чат очищен*\n\nВыберите действие:",
+	return b.SendMessage(user.ChatID, "🗑 <b>Чат очищен</b>\n\nВыберите действие:",
 		tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardRow(
 				tgbotapi.NewInlineKeyboardButtonData("🏠 Главное меню", "start"),
@@ -800,13 +991,13 @@ func (b *Bot) handleReadMessage(user *UserState, data string) error {
 	text = strings.ReplaceAll(text, "<br>", "\n")
 
 	if text == "" {
-		text = "_Текст сообщения отсутствует_"
+		text = "<i>Текст сообщения отсутствует</i>"
 	}
 	if date == "" {
-		date = "_Дата не указана_"
+		date = "<i>Дата не указана</i>"
 	}
 
-	messageText := fmt.Sprintf("📨 *Детали сообщения:*\n\n"+
+	messageText := fmt.Sprintf("📨 <b>Детали сообщения:</b>\n\n"+
 		"👤 От: %s\n"+
 		"📋 Тема: %s\n"+
 		"📅 Дата: %s\n\n"+
@@ -834,7 +1025,7 @@ func (b *Bot) handleSelectRecipient(user *UserState, data string) error {
 	user.TempRecipient = recipientID
 	user.State = "message_compose_subject"
 
-	return b.SendMessage(user.ChatID, "✍️ *Новое сообщение*\n\n📝 Введите тему сообщения:", nil)
+	return b.SendMessage(user.ChatID, "✍️ <b>Новое сообщение</b>\n\n📝 Введите тему сообщения:", nil)
 }
 
 // startComposeMessage начинает создание сообщения с выбором получателя
@@ -845,7 +1036,7 @@ func (b *Bot) startComposeMessage(user *UserState) error {
 		return b.SendMessage(user.ChatID, fmt.Sprintf("❌ Ошибка получения получателей: %v", err), nil)
 	}
 
-	text := "✍️ *Написать сообщение*\n\nВыберите получателя:"
+	text := "✍️ <b>Написать сообщение</b>\n\nВыберите получателя:"
 	var keyboard [][]tgbotapi.InlineKeyboardButton
 	receiversFound := false
 
@@ -981,7 +1172,7 @@ func (b *Bot) handleMessageText(user *UserState, text string) error {
 		),
 	)
 
-	return b.SendMessage(user.ChatID, fmt.Sprintf("✅ **Сообщение отправлено!**\n\n👤 Получатель: %s\n📝 Тема: %s", recipientName, subject), keyboard)
+	return b.SendMessage(user.ChatID, fmt.Sprintf("✅ <b>Сообщение отправлено!</b>\n\n👤 Получатель: %s\n📝 Тема: %s", recipientName, subject), keyboard)
 }
 
 // handleSchedule обрабатывает просмотр расписания
@@ -995,24 +1186,24 @@ func (b *Bot) handleSchedule(user *UserState) error {
 		return b.SendMessage(user.ChatID, fmt.Sprintf("❌ Ошибка получения расписания: %v", err), nil)
 	}
 
-	text := "📋 *Расписание занятий:*\n\n"
+	text := "📋 <b>Расписание занятий:</b>\n\n"
 
 	if len(schedule.Response.Result.Students) == 0 {
-		text += "_Расписание не найдено_"
+		text += "<i>Расписание не найдено</i>"
 	} else {
 		student := schedule.Response.Result.Students[0]
 		for _, day := range student.Days {
 			// Преобразуем дату в читабьый формат
 			dayFormatted := formatDateRu(day.Date)
-			text += fmt.Sprintf("📅 *%s*\n", dayFormatted)
+			text += fmt.Sprintf("📅 <b>%s</b>\n", dayFormatted)
 
 			if len(day.Lessons) == 0 {
-				text += "   _Занятий нет_\n\n"
+				text += "   <i>Занятий нет</i>\n\n"
 				continue
 			}
 
 			for _, lesson := range day.Lessons {
-				text += fmt.Sprintf("   %d. *%s*\n", lesson.Number, lesson.Name)
+				text += fmt.Sprintf("   %d. <b>%s</b>\n", lesson.Number, lesson.Name)
 				if lesson.Teacher != "" {
 					text += fmt.Sprintf("      👨‍🏫 %s\n", lesson.Teacher)
 				}
@@ -1183,7 +1374,7 @@ func (b *Bot) handleGemini(user *UserState) error {
 			modelName = "gemini-1.5-flash"
 		}
 
-		text = "🤖 *Gemini AI Ассистент*\n\n" +
+		text = "🤖 <b>Gemini AI Ассистент</b>\n\n" +
 			fmt.Sprintf("✅ API ключ настроен\n🧠 Модель: %s\n\n", modelName) +
 			"Выберите действие:"
 
@@ -1212,7 +1403,7 @@ func (b *Bot) handleGemini(user *UserState) error {
 func (b *Bot) handleGeminiSetup(user *UserState) error {
 	if user.GeminiAPIKey != "" {
 		// Если ключ уже есть, показываем меню настроек
-		text := "⚙️ *Настройки Gemini AI*\n\n" +
+		text := "⚙️ <b>Настройки Gemini AI</b>\n\n" +
 			fmt.Sprintf("🔑 API ключ: настроен (%s...)\n", user.GeminiAPIKey[:min(8, len(user.GeminiAPIKey))]) +
 			fmt.Sprintf("🧠 Модель: %s\n\n", user.GeminiModel) +
 			"Выберите действие:"
@@ -1234,14 +1425,14 @@ func (b *Bot) handleGeminiSetup(user *UserState) error {
 	}
 
 	// Показываем инструкцию по получению API ключа
-	text := "🔧 *Настройка Gemini AI*\n\n" +
-		"📋 **Инструкция по получению API ключа:**\n\n" +
-		"1️⃣ Перейдите на [Google AI Studio](https://aistudio.google.com/)\n" +
+	text := "🔧 <b>Настройка Gemini AI</b>\n\n" +
+		"📋 <b>Инструкция по получению API ключа:</b>\n\n" +
+		"1️⃣ Перейдите на <a href=\"https://aistudio.google.com/\">Google AI Studio</a>\n" +
 		"2️⃣ Войдите в свой Google аккаунт\n" +
 		"3️⃣ Нажмите «Get API key» или «Получить API ключ»\n" +
 		"4️⃣ Создайте новый API ключ\n" +
 		"5️⃣ Скопируйте ключ и вставьте здесь\n\n" +
-		"⚠️ **Важно:** Никому не передавайте свой API ключ!\n\n" +
+		"⚠️ <b>Важно:</b> Никому не передавайте свой API ключ!\n\n" +
 		"🔑 Введите ваш API ключ:"
 
 	user.State = "gemini_api_setup"
@@ -1273,7 +1464,7 @@ func (b *Bot) handleGeminiAPISetup(user *UserState, apiKey string) error {
 	user.GeminiModel = "gemini-1.5-flash" // Модель по умолчанию
 	user.State = "idle"
 
-	text := "✅ **API ключ успешно сохранен!**\n\n" +
+	text := "✅ <b>API ключ успешно сохранен!</b>\n\n" +
 		"🧠 Выбрана модель: gemini-1.5-flash\n\n" +
 		"Теперь вы можете использовать Gemini AI для помощи с учебой!"
 
@@ -1297,7 +1488,7 @@ func (b *Bot) handleGeminiModelSelect(user *UserState, data string) error {
 		user.GeminiModel = model
 
 		description := gemini.GetModelDescription(model)
-		text := fmt.Sprintf("✅ **Модель изменена!**\n\n🧠 Выбрана: %s\n%s", model, description)
+		text := fmt.Sprintf("✅ <b>Модель изменена!</b>\n\n🧠 Выбрана: %s\n%s", model, description)
 
 		keyboard := tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardRow(
@@ -1310,7 +1501,7 @@ func (b *Bot) handleGeminiModelSelect(user *UserState, data string) error {
 	}
 
 	// Показ списка моделей
-	text := "🧠 *Выберите модель Gemini:*\n\n"
+	text := "🧠 <b>Выберите модель Gemini:</b>\n\n"
 	var keyboard [][]tgbotapi.InlineKeyboardButton
 
 	for _, model := range gemini.GetAvailableModels() {
@@ -1356,7 +1547,7 @@ func (b *Bot) handleGeminiContextSelect(user *UserState, data string) error {
 	user.GeminiContext = context
 	user.State = "gemini_chat"
 
-	text := fmt.Sprintf("🤖 **%s**\n\n💭 Введите ваш вопрос:", contextName)
+	text := fmt.Sprintf("🤖 <b>%s</b>\n\n💭 Введите ваш вопрос:", contextName)
 
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
@@ -1376,8 +1567,8 @@ func (b *Bot) handleGeminiChatStart(user *UserState) error {
 	user.State = "gemini_chat"
 	user.GeminiContext = "Ты помощник ученика. Отвечай на вопросы, помогай с учебой."
 
-	text := "🤖 **Чат с Gemini AI**\n\n💭 Задайте ваш вопрос:\n\n" +
-		"*Примеры:*\n" +
+	text := "🤖 <b>Чат с Gemini AI</b>\n\n💭 Задайте ваш вопрос:\n\n" +
+		"<i>Примеры:</i>\n" +
 		"• Объясни что такое квадратные уравнения\n" +
 		"• Найди информацию о Великой Отечественной войне\n" +
 		"• Помоги решить задачу по физике\n" +
@@ -1426,10 +1617,10 @@ func (b *Bot) handleGeminiChat(user *UserState, message string) error {
 
 	// Очищаем ответ от потенциально проблемных символов
 	response = strings.ReplaceAll(response, "\u0000", "")
-	response = strings.ReplaceAll(response, "`", "'")  // Заменяем обратные кавычки
+	response = strings.ReplaceAll(response, "`", "'")   // Заменяем обратные кавычки
 	response = strings.ReplaceAll(response, "*", "\\*") // Экранируем звездочки
-	response = strings.ReplaceAll(response, "_", "\\_")  // Экранируем подчеркивания
-	response = strings.ReplaceAll(response, "[", "\\[")  // Экранируем квадратные скобки
+	response = strings.ReplaceAll(response, "_", "\\_") // Экранируем подчеркивания
+	response = strings.ReplaceAll(response, "[", "\\[") // Экранируем квадратные скобки
 	response = strings.ReplaceAll(response, "]", "\\]")
 	response = strings.TrimSpace(response)
 
@@ -1442,7 +1633,7 @@ func (b *Bot) handleGeminiChat(user *UserState, message string) error {
 
 	if len(response) <= maxLength {
 		// Ответ помещается в одно сообщение
-		text := fmt.Sprintf("🤖 **Gemini AI:**\n\n%s", response)
+		text := fmt.Sprintf("🤖 <b>Gemini AI:</b>\n\n%s", response)
 
 		keyboard := tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardRow(
@@ -1464,9 +1655,9 @@ func (b *Bot) handleGeminiChat(user *UserState, message string) error {
 			var keyboard tgbotapi.InlineKeyboardMarkup
 
 			if i == 0 {
-				text = fmt.Sprintf("🤖 **Gemini AI** (часть %d/%d):\n\n%s", i+1, len(parts), part)
+				text = fmt.Sprintf("🤖 <b>Gemini AI</b> (часть %d/%d):\n\n%s", i+1, len(parts), part)
 			} else {
-				text = fmt.Sprintf("🤖 **Продолжение** (часть %d/%d):\n\n%s", i+1, len(parts), part)
+				text = fmt.Sprintf("🤖 <b>Продолжение</b> (часть %d/%d):\n\n%s", i+1, len(parts), part)
 			}
 
 			// Добавляем кнопки только к последней части
@@ -1496,21 +1687,21 @@ func (b *Bot) handleGeminiChat(user *UserState, message string) error {
 
 // handleGeminiHelp показывает инструкцию по использованию Gemini
 func (b *Bot) handleGeminiHelp(user *UserState) error {
-	text := "📖 *Инструкция по использованию Gemini AI*\n\n" +
-		"🔧 *Настройка:*\n" +
-		"1. Перейдите на [Google AI Studio](https://aistudio.google.com/)\n" +
+	text := "📖 <b>Инструкция по использованию Gemini AI</b>\n\n" +
+		"🔧 <b>Настройка:</b>\n" +
+		"1. Перейдите на <a href=\"https://aistudio.google.com/\">Google AI Studio</a>\n" +
 		"2. Войдите в Google аккаунт\n" +
 		"3. Нажмите «Get API key»\n" +
 		"4. Создайте новый проект или выберите существующий\n" +
 		"5. Создайте API ключ\n" +
 		"6. Скопируйте ключ и вставьте в бота\n\n" +
-		"🤖 *Возможности:*\n" +
+		"🤖 <b>Возможности:</b>\n" +
 		"• Помощь с домашним заданием\n" +
 		"• Объяснение сложных тем\n" +
 		"• Поиск учебных материалов\n" +
 		"• Ссылки на обучающие видео\n" +
 		"• Решение задач и примеров\n\n" +
-		"💡 *Примеры вопросов:*\n" +
+		"💡 <b>Примеры вопросов:</b>\n" +
 		"• «Объясни теорему Пифагора»\n" +
 		"• «Найди видео про квадратные уравнения»\n" +
 		"• «Помоги с задачей по химии»\n" +
@@ -1535,7 +1726,7 @@ func (b *Bot) handleGeminiReset(user *UserState) error {
 	user.GeminiContext = ""
 	user.State = "idle"
 
-	text := "🗑 *Настройки Gemini сброшены*\n\n" +
+	text := "🗑 <b>Настройки Gemini сброшены</b>\n\n" +
 		"Все данные удалены. Для повторного использования необходимо заново настроить API ключ."
 
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(
