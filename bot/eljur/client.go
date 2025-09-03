@@ -901,3 +901,25 @@ func (c *Client) GetMarks(period int, startDate, endDate string) (*MarksResponse
 
 	return &marksResp, nil
 }
+
+// GetLogin возвращает логин пользователя (для session management)
+func (c *Client) GetLogin() string {
+	return "" // Не сохраняем логин по соображениям безопасности
+}
+
+// GetToken возвращает токен аутентификации (для session management)
+func (c *Client) GetToken() string {
+	return c.authToken
+}
+
+// RestoreSession восстанавливает сессию по логину и токену
+func (c *Client) RestoreSession(login, token string) error {
+	if token == "" {
+		return fmt.Errorf("токен не может быть пустым")
+	}
+	
+	c.authToken = token
+	
+	// Проверяем валидность токена запросом getrules
+	return c.getRules()
+}

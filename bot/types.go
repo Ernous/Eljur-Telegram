@@ -27,13 +27,14 @@ type Bot struct {
 	Users  map[int64]*UserState
 }
 
-// NewBot создает новый экземпляр бота
+// NewBot создает новый экземпляр бота (оптимизировано для serverless)
 func NewBot(token string) (*Bot, error) {
 	api, err := tgbotapi.NewBotAPI(token)
 	if err != nil {
 		return nil, err
 	}
 
+	// Отключаем debug в production для лучшей производительности
 	api.Debug = false
 
 	return &Bot{
@@ -42,19 +43,10 @@ func NewBot(token string) (*Bot, error) {
 	}, nil
 }
 
-// GetUserState получает или создает состояние пользователя
+// GetUserState получает или создает состояние пользователя (legacy метод)
 func (b *Bot) GetUserState(chatID int64) *UserState {
-	if user, exists := b.Users[chatID]; exists {
-		return user
-	}
-
-	user := &UserState{
-		ChatID: chatID,
-		State:  "idle",
-		Client: eljur.NewClient(),
-	}
-	b.Users[chatID] = user
-	return user
+	// В webhook режиме используем serverless метод
+	return b.GetUserStateServerless(chatID)
 }
 
 // SendMessage отправляет сообщение пользователю
@@ -91,4 +83,10 @@ func (b *Bot) EditMessage(chatID int64, messageID int, text string, keyboard int
 func (b *Bot) AnswerCallback(callbackID, text string) {
 	callback := tgbotapi.NewCallback(callbackID, text)
 	b.API.Request(callback)
+}
+
+// SaveUserStateIfNeeded сохраняет состояние пользователя если нужно (webhook mode)
+func (b *Bot) SaveUserStateIfNeeded(userState *UserState) {
+	// В webhook режиме автоматически сохраняем состояние после каждой операции
+	b.SaveUserStateServerless(userState)
 }

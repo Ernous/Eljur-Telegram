@@ -11,8 +11,19 @@
   ],
   "routes": [
     {
+      "src": "/api/webhook",
+      "dest": "/api/webhook.go",
+      "methods": ["POST"]
+    },
+    {
       "src": "/(.*)",
-      "dest": "/api/webhook.go"
+      "dest": "/api/webhook.go",
+      "status": 404
     }
-  ]
+  ],
+  "functions": {
+    "api/webhook.go": {
+      "maxDuration": 10
+    }
+  }
 }

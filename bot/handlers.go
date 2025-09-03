@@ -161,8 +161,8 @@ func (b *Bot) handleStart(user *UserState) error {
 
 // handleHelp обрабатывает команду /help
 func (b *Bot) handleHelp(user *UserState) error {
-	helpText := "🤖 *Школьный электронный дневник*\n\n" +
-		"*Доступные команды:*\n" +
+	helpText := "🤖 <b>Школьный электронный дневник</b>\n\n" +
+		"<b>Доступные команды:</b>\n" +
 		"/start - Главное меню\n" +
 		"/login - Авторизация в системе\n" +
 		"/logout - Выход из системы\n" +
@@ -173,13 +173,13 @@ func (b *Bot) handleHelp(user *UserState) error {
 		"/marks - Оценки по предметам\n" +
 		"/gemini - Gemini AI Ассистент\n" +
 		"/help - Эта справка\n\n" +
-		"*Как пользоваться:*\n" +
+		"<b>Как пользоваться:</b>\n" +
 		"1. Авторизуйтесь с помощью /login\n" +
 		"2. Используйте команды для просмотра информации\n" +
 		"3. Выбирайте недели и периоды для просмотра данных\n\n" +
-		"*Пример авторизации:*\n" +
-		"Логин: \\`Ivanov\\`\n" +
-		"Пароль: \\`password123\\`"
+		"<b>Пример авторизации:</b>\n" +
+		"Логин: <code>Ivanov</code>\n" +
+		"Пароль: <code>password123</code>"
 
 	return b.SendMessage(user.ChatID, helpText, nil)
 }
@@ -193,7 +193,7 @@ func (b *Bot) handleLogin(user *UserState) error {
 	user.State = "auth_waiting"
 	user.AuthStep = 1
 
-	return b.SendMessage(user.ChatID, "🔐 *Авторизация*\n\nВведите ваш логин:\n\n_Пример: Ivanov_", nil)
+	return b.SendMessage(user.ChatID, "🔐 <b>Авторизация</b>\n\nВведите ваш логин:\n\n<i>Пример: Ivanov</i>", nil)
 }
 
 // handleLogout обрабатывает выход из системы
@@ -207,16 +207,21 @@ func (b *Bot) handleLogout(user *UserState) error {
 	return b.SendMessage(user.ChatID, "👋 Вы вышли из системы.", nil)
 }
 
-// handleAuthInput обрабатывает ввод данных авторизации
+// handleAuthInput обрабатывает ввод данных авторизации (оптимизировано для webhook)
 func (b *Bot) handleAuthInput(user *UserState, text string) error {
 	switch user.AuthStep {
 	case 1: // Логин
 		user.TempLogin = strings.TrimSpace(text)
 		user.AuthStep = 2
-		return b.SendMessage(user.ChatID, "🔑 Теперь введите ваш пароль:\n\n_Пример: password123_", nil)
+		// Сохраняем состояние после обновления
+		b.SaveUserStateIfNeeded(user)
+		return b.SendMessage(user.ChatID, "🔑 Теперь введите ваш пароль:\n\n<i>Пример: password123</i>", nil)
 
 	case 2: // Пароль
 		user.TempPassword = strings.TrimSpace(text)
+
+		// Отправляем сообщение о процессе авторизации
+		b.SendMessage(user.ChatID, "🔄 Проверяем данные авторизации...", nil)
 
 		// Выполняем авторизацию
 		err := user.Client.Authenticate(user.TempLogin, user.TempPassword)
@@ -228,9 +233,13 @@ func (b *Bot) handleAuthInput(user *UserState, text string) error {
 		user.AuthStep = 0
 
 		if err != nil {
+			b.SaveUserStateIfNeeded(user)
 			return b.SendMessage(user.ChatID, fmt.Sprintf("❌ Ошибка авторизации: %v\n\nПопробуйте еще раз с помощью /login", err), nil)
 		}
 
+		// Сохраняем состояние после успешной авторизации
+		b.SaveUserStateIfNeeded(user)
+		
 		// После успешной авторизации показываем главное меню
 		_ = b.SendMessage(user.ChatID, "✅ Авторизация успешна! Теперь вам доступны все функции дневника.", nil)
 		return b.handleStart(user)
@@ -1088,21 +1097,21 @@ func (b *Bot) handlePeriodSelect(user *UserState, data string) error {
 
 // formatMarks форматирует и отправляет оценки
 func (b *Bot) formatMarks(user *UserState, marks *eljur.MarksResponse, periodName string) error {
-	text := fmt.Sprintf("📊 *Оценки - %s:*\n\n", periodName)
+	text := fmt.Sprintf("📊 <b>Оценки - %s:</b>\n\n", periodName)
 
 	if len(marks.Response.Result.Students) == 0 {
-		text += "_Оценки не найдены_"
+		text += "<i>Оценки не найдены</i>"
 	} else {
 		student := marks.Response.Result.Students[0]
 
 		if len(student.Subjects) == 0 {
-			text += "_Оценки отсутствуют за выбранный период_"
+			text += "<i>Оценки отсутствуют за выбранный период</i>"
 		} else {
 			for _, subject := range student.Subjects {
-				text += fmt.Sprintf("📚 *%s*\n", subject.Name)
+				text += fmt.Sprintf("📚 <b>%s</b>\n", subject.Name)
 
 				if len(subject.Marks) == 0 {
-					text += "   _Оценок нет_\n\n"
+					text += "   <i>Оценок нет</i>\n\n"
 				} else {
 					text += "   "
 					for _, mark := range subject.Marks {
