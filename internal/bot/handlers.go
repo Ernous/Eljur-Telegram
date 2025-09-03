@@ -820,7 +820,7 @@ func (b *Bot) startComposeMessage(user *UserState) error {
 	// Вариант 2: получатели могут быть в другом формате
 	if !receiversFound {
 		// Пробуем найти получателей в других полях result
-		for key, value := range result {
+		for _, value := range result {
 			if array, ok := value.([]interface{}); ok && len(array) > 0 {
 				// Проверяем первый элемент массива
 				if first, ok := array[0].(map[string]interface{}); ok {
