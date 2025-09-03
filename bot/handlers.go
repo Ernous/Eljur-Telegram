@@ -210,7 +210,7 @@ func (b *Bot) handleLogin(user *UserState) error {
 	user.State = "auth_waiting"
 	user.AuthStep = 1
 
-	return b.SendMessage(user.ChatID, "🔐 <b>Авторизация</b>\n\nВведите ваш логин:\n\n<i>Пример: Ivanov</i>", nil)
+	return b.SendMessage(user.ChatID, "🔐 <b>Авторизация</b>\n\nВведите ваш логин и пароль:\n\n<i>Пример: /login Ivanov passwd123</i>", nil)
 }
 
 // handleLoginWithParams обрабатывает авторизацию с параметрами /login username password
