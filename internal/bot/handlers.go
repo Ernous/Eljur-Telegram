@@ -232,8 +232,10 @@ func (b *Bot) HandleCallback(query *tgbotapi.CallbackQuery) error {
 		return b.handleGeminiSetup(user)
 	case data == "gemini_help":
 		return b.handleGeminiHelp(user)
+	case data == "gemini_model_select":
+		return b.handleGeminiModelSelect(user, data) // Показать список моделей
 	case strings.HasPrefix(data, "gemini_model_"):
-		return b.handleGeminiModelSelect(user, data)
+		return b.handleGeminiModelSelect(user, data) // Выбор конкретной модели
 	case data == "gemini_change_key":
 		return b.handleGeminiSetup(user) // Показываем форму ввода ключа
 	case data == "gemini_reset":
@@ -1233,7 +1235,7 @@ func (b *Bot) handleGeminiAPISetup(user *UserState, apiKey string) error {
 
 // handleGeminiModelSelect показывает выбор модели
 func (b *Bot) handleGeminiModelSelect(user *UserState, data string) error {
-	if strings.HasPrefix(data, "gemini_model_") {
+	if strings.HasPrefix(data, "gemini_model_") && data != "gemini_model_select" {
 		// Выбор конкретной модели
 		model := strings.TrimPrefix(data, "gemini_model_")
 		user.GeminiModel = model
@@ -1268,7 +1270,7 @@ func (b *Bot) handleGeminiModelSelect(user *UserState, data string) error {
 		button := tgbotapi.NewInlineKeyboardButtonData(buttonText, callbackData)
 		keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{button})
 
-		text += fmt.Sprintf("%s\n", description)
+		text += fmt.Sprintf("%s\n\n", description)
 	}
 
 	keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
