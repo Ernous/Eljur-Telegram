@@ -520,7 +520,7 @@ func (c *Client) GetPeriods(weeks, showDisabled bool) (*PeriodsResponse, error) 
                 return nil, fmt.Errorf("HTTP ошибка: %d", resp.StatusCode)
         }
 
-        body, err := io.ReadAll(resp.Body)
+        body, err := c.readResponseBody(resp)
         if err != nil {
                 return nil, fmt.Errorf("ошибка чтения ответа: %w", err)
         }
@@ -562,7 +562,7 @@ func (c *Client) GetDiary(days string) (*DiaryResponse, error) {
                 return nil, fmt.Errorf("HTTP ошибка: %d", resp.StatusCode)
         }
 
-        body, err := io.ReadAll(resp.Body)
+        body, err := c.readResponseBody(resp)
         if err != nil {
                 return nil, fmt.Errorf("ошибка чтения ответа: %w", err)
         }
@@ -612,7 +612,7 @@ func (c *Client) GetMessages(folder string) (*MessagesResponse, error) {
                 return nil, fmt.Errorf("HTTP ошибка: %d", resp.StatusCode)
         }
 
-        body, err := io.ReadAll(resp.Body)
+        body, err := c.readResponseBody(resp)
         if err != nil {
                 return nil, fmt.Errorf("ошибка чтения ответа: %w", err)
         }
@@ -652,7 +652,7 @@ func (c *Client) GetMessageDetails(messageID string) (*MessageDetailsResponse, e
                 return nil, fmt.Errorf("HTTP ошибка: %d", resp.StatusCode)
         }
 
-        body, err := io.ReadAll(resp.Body)
+        body, err := c.readResponseBody(resp)
         if err != nil {
                 return nil, fmt.Errorf("ошибка чтения ответа: %w", err)
         }
@@ -691,7 +691,7 @@ func (c *Client) GetMessageReceivers() (*ReceiversResponse, error) {
                 return nil, fmt.Errorf("HTTP ошибка: %d", resp.StatusCode)
         }
 
-        body, err := io.ReadAll(resp.Body)
+        body, err := c.readResponseBody(resp)
         if err != nil {
                 return nil, fmt.Errorf("ошибка чтения ответа: %w", err)
         }
@@ -735,7 +735,7 @@ func (c *Client) SendMessage(recipients []string, subject, text string) (*SendMe
                 return nil, fmt.Errorf("HTTP ошибка: %d", resp.StatusCode)
         }
 
-        body, err := io.ReadAll(resp.Body)
+        body, err := c.readResponseBody(resp)
         if err != nil {
                 return nil, fmt.Errorf("ошибка чтения ответа: %w", err)
         }
@@ -788,7 +788,7 @@ func (c *Client) GetSchedule(days, classID string) (*ScheduleResponse, error) {
                 return nil, fmt.Errorf("HTTP ошибка: %d", resp.StatusCode)
         }
 
-        body, err := io.ReadAll(resp.Body)
+        body, err := c.readResponseBody(resp)
         if err != nil {
                 return nil, fmt.Errorf("ошибка чтения ответа: %w", err)
         }
@@ -847,7 +847,7 @@ func (c *Client) GetMarks(period int, startDate, endDate string) (*MarksResponse
                 return nil, fmt.Errorf("HTTP ошибка: %d", resp.StatusCode)
         }
 
-        body, err := io.ReadAll(resp.Body)
+        body, err := c.readResponseBody(resp)
         if err != nil {
                 return nil, fmt.Errorf("ошибка чтения ответа: %w", err)
         }
