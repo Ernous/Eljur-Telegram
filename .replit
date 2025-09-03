@@ -20,7 +20,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "echo \"Telegram Bot готов к разработке. Смотрите replit.md для инструкций.\""
+args = "go run main.go"
 
 [workflows.workflow.metadata]
 outputType = "console"

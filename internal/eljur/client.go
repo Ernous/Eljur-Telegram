@@ -5,6 +5,7 @@ import (
         "encoding/json"
         "fmt"
         "io"
+        "log"
         "net/http"
         "net/url"
         "os"
@@ -315,6 +316,8 @@ func (c *Client) getCommonParams() url.Values {
 
 // Authenticate выполняет авторизацию пользователя
 func (c *Client) Authenticate(login, password string) error {
+        log.Printf("[AUTH] Начинаем авторизацию пользователя: %s", login)
+        
         params := url.Values{}
         params.Set("devkey", getDevKey())
         params.Set("out_format", "json")
@@ -325,69 +328,116 @@ func (c *Client) Authenticate(login, password string) error {
         data.Set("login", login)
         data.Set("password", password)
 
+        log.Printf("[AUTH] Отправляем запрос на: %s", getBaseURL()+"auth")
+        log.Printf("[AUTH] Параметры: %s", params.Encode())
+        log.Printf("[AUTH] Данные: login=%s, password=[HIDDEN]", login)
+
         resp, err := c.makeRequest("POST", "auth", params, data)
         if err != nil {
+                log.Printf("[AUTH] Ошибка запроса: %v", err)
                 return fmt.Errorf("ошибка запроса авторизации: %w", err)
         }
         defer resp.Body.Close()
 
+        log.Printf("[AUTH] Получен ответ с кодом: %d", resp.StatusCode)
+        log.Printf("[AUTH] Заголовки ответа: %v", resp.Header)
+
         if resp.StatusCode != 200 {
+                body, _ := io.ReadAll(resp.Body)
+                log.Printf("[AUTH] Тело ответа при ошибке: %s", string(body))
                 return fmt.Errorf("HTTP ошибка: %d", resp.StatusCode)
         }
 
         body, err := io.ReadAll(resp.Body)
         if err != nil {
+                log.Printf("[AUTH] Ошибка чтения тела ответа: %v", err)
                 return fmt.Errorf("ошибка чтения ответа: %w", err)
         }
 
+        log.Printf("[AUTH] Тело ответа: %s", string(body))
+
         var authResp AuthResponse
         if err := json.Unmarshal(body, &authResp); err != nil {
+                log.Printf("[AUTH] Ошибка парсинга JSON: %v", err)
+                log.Printf("[AUTH] Сырой JSON: %s", string(body))
                 return fmt.Errorf("ошибка парсинга JSON: %w", err)
         }
 
+        log.Printf("[AUTH] Разобранный ответ: %+v", authResp)
+
         if authResp.Response.State != 200 {
+                log.Printf("[AUTH] Ошибка в ответе: State=%d, Error=%s", authResp.Response.State, authResp.Response.Error)
                 return fmt.Errorf("ошибка API: %s", authResp.Response.Error)
         }
 
+        if authResp.Response.Result.Token == "" {
+                log.Printf("[AUTH] Токен пустой в ответе")
+                return fmt.Errorf("получен пустой токен авторизации")
+        }
+
         c.authToken = authResp.Response.Result.Token
+        tokenPreview := c.authToken
+        if len(tokenPreview) > 10 {
+                tokenPreview = tokenPreview[:10]
+        }
+        log.Printf("[AUTH] Получен токен: %s...", tokenPreview)
 
         // Сохраняем cookies
         for _, cookie := range resp.Cookies() {
+                log.Printf("[AUTH] Получен cookie: %s = %s", cookie.Name, cookie.Value)
                 if cookie.Name == "school_domain" {
                         c.domain = cookie.Value
                         c.cookies[cookie.Name] = cookie.Value
+                        log.Printf("[AUTH] Сохранен домен: %s", c.domain)
                 }
         }
 
         // Получаем информацию о пользователе
+        log.Printf("[AUTH] Получаем информацию о пользователе...")
         return c.getRules()
 }
 
 // getRules получает информацию о пользователе
 func (c *Client) getRules() error {
+        log.Printf("[RULES] Запрашиваем информацию о пользователе...")
         params := c.getCommonParams()
+
+        log.Printf("[RULES] Отправляем запрос на: %s", getBaseURL()+"getrules")
+        log.Printf("[RULES] Параметры: %s", params.Encode())
 
         resp, err := c.makeRequest("GET", "getrules", params, nil)
         if err != nil {
+                log.Printf("[RULES] Ошибка запроса: %v", err)
                 return fmt.Errorf("ошибка запроса правил: %w", err)
         }
         defer resp.Body.Close()
 
+        log.Printf("[RULES] Получен ответ с кодом: %d", resp.StatusCode)
+
         if resp.StatusCode != 200 {
+                body, _ := io.ReadAll(resp.Body)
+                log.Printf("[RULES] Тело ответа при ошибке: %s", string(body))
                 return fmt.Errorf("HTTP ошибка: %d", resp.StatusCode)
         }
 
         body, err := io.ReadAll(resp.Body)
         if err != nil {
+                log.Printf("[RULES] Ошибка чтения тела ответа: %v", err)
                 return fmt.Errorf("ошибка чтения ответа: %w", err)
         }
 
+        log.Printf("[RULES] Тело ответа: %s", string(body))
+
         var rulesResp RulesResponse
         if err := json.Unmarshal(body, &rulesResp); err != nil {
+                log.Printf("[RULES] Ошибка парсинга JSON: %v", err)
                 return fmt.Errorf("ошибка парсинга JSON: %w", err)
         }
 
+        log.Printf("[RULES] Разобранный ответ: %+v", rulesResp)
+
         if rulesResp.Response.State != 200 {
+                log.Printf("[RULES] Ошибка в ответе: State=%d, Error=%s", rulesResp.Response.State, rulesResp.Response.Error)
                 return fmt.Errorf("ошибка API: %s", rulesResp.Response.Error)
         }
 
