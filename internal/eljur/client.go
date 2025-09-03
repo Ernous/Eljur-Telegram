@@ -2,6 +2,7 @@ package eljur
 
 import (
         "bytes"
+        "compress/gzip"
         "encoding/json"
         "fmt"
         "io"
@@ -9,6 +10,7 @@ import (
         "net/http"
         "net/url"
         "os"
+        "strings"
         "time"
 )
 
@@ -317,6 +319,24 @@ func (c *Client) makeRequest(method, endpoint string, params url.Values, data ur
         return c.httpClient.Do(req)
 }
 
+// readResponseBody читает и декодирует тело ответа (поддержка gzip)
+func (c *Client) readResponseBody(resp *http.Response) ([]byte, error) {
+        var reader io.Reader = resp.Body
+        
+        // Проверяем, сжат ли ответ gzip
+        if strings.Contains(resp.Header.Get("Content-Encoding"), "gzip") {
+                log.Printf("[RESPONSE] Обнаружено gzip сжатие, декодируем...")
+                gzipReader, err := gzip.NewReader(resp.Body)
+                if err != nil {
+                        return nil, fmt.Errorf("ошибка создания gzip ридера: %w", err)
+                }
+                defer gzipReader.Close()
+                reader = gzipReader
+        }
+        
+        return io.ReadAll(reader)
+}
+
 // getCommonParams возвращает общие параметры для всех запросов
 func (c *Client) getCommonParams() url.Values {
         params := url.Values{}
@@ -356,12 +376,12 @@ func (c *Client) Authenticate(login, password string) error {
         log.Printf("[AUTH] Заголовки ответа: %v", resp.Header)
 
         if resp.StatusCode != 200 {
-                body, _ := io.ReadAll(resp.Body)
+                body, _ := c.readResponseBody(resp)
                 log.Printf("[AUTH] Тело ответа при ошибке: %s", string(body))
                 return fmt.Errorf("HTTP ошибка: %d", resp.StatusCode)
         }
 
-        body, err := io.ReadAll(resp.Body)
+        body, err := c.readResponseBody(resp)
         if err != nil {
                 log.Printf("[AUTH] Ошибка чтения тела ответа: %v", err)
                 return fmt.Errorf("ошибка чтения ответа: %w", err)
@@ -428,12 +448,12 @@ func (c *Client) getRules() error {
         log.Printf("[RULES] Получен ответ с кодом: %d", resp.StatusCode)
 
         if resp.StatusCode != 200 {
-                body, _ := io.ReadAll(resp.Body)
+                body, _ := c.readResponseBody(resp)
                 log.Printf("[RULES] Тело ответа при ошибке: %s", string(body))
                 return fmt.Errorf("HTTP ошибка: %d", resp.StatusCode)
         }
 
-        body, err := io.ReadAll(resp.Body)
+        body, err := c.readResponseBody(resp)
         if err != nil {
                 log.Printf("[RULES] Ошибка чтения тела ответа: %v", err)
                 return fmt.Errorf("ошибка чтения ответа: %w", err)
