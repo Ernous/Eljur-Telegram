@@ -1062,7 +1062,7 @@ func (b *Bot) formatMarks(user *UserState, marks *eljur.MarksResponse, periodNam
 				} else {
 					text += "   "
 					for _, mark := range subject.Marks {
-						text += fmt.Sprintf("`%s` ", mark.Value)
+						text += fmt.Sprintf("[%s] ", mark.Value)
 					}
 
 					// Вычисляем средний балл (упрощенно)
@@ -1076,7 +1076,7 @@ func (b *Bot) formatMarks(user *UserState, marks *eljur.MarksResponse, periodNam
 						}
 						if count > 0 {
 							avg := sum / count
-							text += fmt.Sprintf("\n   📈 Средний балл: `%.2f`", avg)
+							text += fmt.Sprintf("\n   📈 Средний балл: %.2f", avg)
 						}
 					}
 					text += "\n\n"
@@ -1373,6 +1373,11 @@ func (b *Bot) handleGeminiChat(user *UserState, message string) error {
 
 	// Очищаем ответ от потенциально проблемных символов
 	response = strings.ReplaceAll(response, "\u0000", "")
+	response = strings.ReplaceAll(response, "`", "'")  // Заменяем обратные кавычки
+	response = strings.ReplaceAll(response, "*", "\\*") // Экранируем звездочки
+	response = strings.ReplaceAll(response, "_", "\\_")  // Экранируем подчеркивания
+	response = strings.ReplaceAll(response, "[", "\\[")  // Экранируем квадратные скобки
+	response = strings.ReplaceAll(response, "]", "\\]")
 	response = strings.TrimSpace(response)
 
 	if response == "" {
@@ -1380,8 +1385,8 @@ func (b *Bot) handleGeminiChat(user *UserState, message string) error {
 	}
 
 	// Ограничиваем длину ответа (Telegram ограничивает до 4096 символов)
-	if len(response) > 3900 {
-		response = response[:3900] + "\n\n... (ответ обрезан)"
+	if len(response) > 3800 {
+		response = response[:3800] + "\n\n... (ответ обрезан)"
 	}
 
 	text := fmt.Sprintf("🤖 **Gemini AI:**\n\n%s", response)
