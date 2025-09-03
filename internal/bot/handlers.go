@@ -318,10 +318,96 @@ func (b *Bot) formatDiary(user *UserState, diary *eljur.DiaryResponse) error {
 
 	// Парсим результат как гибкую структуру
 	result := diary.Response.Result
-	studentsData, ok := result["students"]
-	if !ok {
-		diaryText.WriteString("📝 Записей в дневнике пока нет")
+	
+	// Проверяем, есть ли студенты в результате
+	studentsData, hasStudents := result["students"]
+	if !hasStudents {
+		// Если нет ключа students, проверяем прямую структуру дат
+		hasLessons := false
+		for key, value := range result {
+			// Проверяем, является ли ключ датой (формат YYYYMMDD)
+			if len(key) == 8 {
+				if dayData, ok := value.(map[string]interface{}); ok {
+					title, _ := dayData["title"].(string)
+					if title == "" {
+						title = key
+					}
+					
+					diaryText.WriteString(fmt.Sprintf("📅 *%s*\n", title))
+					
+					itemsData, ok := dayData["items"]
+					if !ok {
+						diaryText.WriteString("   Уроков нет\n\n")
+						continue
+					}
+					
+					items, ok := itemsData.(map[string]interface{})
+					if !ok || len(items) == 0 {
+						diaryText.WriteString("   Уроков нет\n\n")
+						continue
+					}
+					
+					hasLessons = true
+					
+					// Сортируем уроки по номеру
+					var lessonNumbers []string
+					for lessonNum := range items {
+						lessonNumbers = append(lessonNumbers, lessonNum)
+					}
+					
+					// Простая сортировка по номеру урока
+					for i := 1; i <= 10; i++ {
+						lessonNum := fmt.Sprintf("%d", i)
+						if lessonData, exists := items[lessonNum]; exists {
+							if lesson, ok := lessonData.(map[string]interface{}); ok {
+								name, _ := lesson["name"].(string)
+								teacher, _ := lesson["teacher"].(string)
+								room, _ := lesson["room"].(string)
+								starttime, _ := lesson["starttime"].(string)
+								endtime, _ := lesson["endtime"].(string)
+								
+								diaryText.WriteString(fmt.Sprintf("   %s. %s", lessonNum, name))
+								
+								if teacher != "" {
+									diaryText.WriteString(fmt.Sprintf("\n      👨‍🏫 %s", teacher))
+								}
+								
+								if room != "" {
+									diaryText.WriteString(fmt.Sprintf("\n      🏫 Кабинет %s", room))
+								}
+								
+								if starttime != "" && endtime != "" {
+									diaryText.WriteString(fmt.Sprintf("\n      ⏰ %s - %s", starttime, endtime))
+								}
+								
+								// Проверяем домашнее задание
+								if homeworkData, ok := lesson["homework"]; ok {
+									if homework, ok := homeworkData.(map[string]interface{}); ok && len(homework) > 0 {
+										diaryText.WriteString("\n      📝 ДЗ:")
+										for _, hwData := range homework {
+											if hw, ok := hwData.(map[string]interface{}); ok {
+												if value, ok := hw["value"].(string); ok && value != "" {
+													diaryText.WriteString(fmt.Sprintf(" %s", value))
+												}
+											}
+										}
+									}
+								}
+								
+								diaryText.WriteString("\n")
+							}
+						}
+					}
+					diaryText.WriteString("\n")
+				}
+			}
+		}
+		
+		if !hasLessons {
+			diaryText.WriteString("📝 Уроков на этой неделе нет")
+		}
 	} else {
+		// Обработка старого формата с массивом студентов
 		students, ok := studentsData.([]interface{})
 		if !ok {
 			diaryText.WriteString("📝 Ошибка обработки данных дневника")
@@ -598,15 +684,18 @@ func (b *Bot) handleReadMessage(user *UserState, data string) error {
 	subject := msgDetails.Response.Result.Subject
 	text := msgDetails.Response.Result.Text
 	date := msgDetails.Response.Result.Date
+	to := msgDetails.Response.Result.To
 
-	if from == "" {
-		from = "Система"
+	if from == "" && to != "" {
+		from = "Вы → " + to
+	} else if from == "" {
+		from = "Неизвестный отправитель"
 	}
 	if subject == "" {
 		subject = "Без темы"
 	}
 	if text == "" {
-		text = "_Текст сообщения отсутствует или не удалось загрузить_"
+		text = "_Текст сообщения отсутствует_"
 	}
 	if date == "" {
 		date = "_Дата не указана_"
