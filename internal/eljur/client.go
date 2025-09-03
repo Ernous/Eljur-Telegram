@@ -270,6 +270,12 @@ func (c *Client) makeRequest(method, endpoint string, params url.Values, data ur
         fullURL := getBaseURL() + endpoint
 
         if method == "POST" {
+                // Для POST запроса добавляем параметры к URL, как в Python коде
+                if params != nil && len(params) > 0 {
+                        fullURL += "?" + params.Encode()
+                }
+                
+                // Данные отправляем в теле запроса
                 req, err = http.NewRequest("POST", fullURL, bytes.NewBufferString(data.Encode()))
                 if err != nil {
                         return nil, err
@@ -285,7 +291,7 @@ func (c *Client) makeRequest(method, endpoint string, params url.Values, data ur
                 }
         }
 
-        // Добавляем заголовки
+        // Добавляем заголовки точно как в Python коде
         req.Header.Set("User-Agent", "")
         req.Header.Set("Accept-Encoding", "gzip")
 
@@ -299,6 +305,13 @@ func (c *Client) makeRequest(method, endpoint string, params url.Values, data ur
                         cookieStr += k + "=" + v
                 }
                 req.Header.Set("Cookie", cookieStr)
+        }
+
+        log.Printf("[REQUEST] Финальный URL: %s", req.URL.String())
+        log.Printf("[REQUEST] Метод: %s", method)
+        log.Printf("[REQUEST] Заголовки: %v", req.Header)
+        if req.Body != nil && method == "POST" {
+                log.Printf("[REQUEST] Тело запроса: %s", data.Encode())
         }
 
         return c.httpClient.Do(req)
