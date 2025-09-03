@@ -526,10 +526,10 @@ func (b *Bot) formatDiary(user *UserState, diary *eljur.DiaryResponse) error {
 								}
 							}
 						}
+					} else {
+						diaryText.WriteString("📝 Ошибка обработки данных студентов")
 					}
 				}
-			} else {
-				diaryText.WriteString("📝 Ошибка обработки данных студентов")
 			}
 		}
 	}
@@ -1139,7 +1139,7 @@ func (b *Bot) handleGemini(user *UserState) error {
 	var text string
 	var keyboard tgbotapi.InlineKeyboardMarkup
 
-	if user.GeminiAPIKey == "" {
+	if user.GeminiAPIKey
 		text = "🤖 *Gemini AI Ассистент*\n\n" +
 			"⚠️ API ключ не настроен!\n\n" +
 			"🔧 Для использования Gemini AI необходимо:\n" +
@@ -1263,14 +1263,14 @@ func (b *Bot) handleGeminiAPISetup(user *UserState, apiKey string) error {
 		"🧠 Выбрана модель: gemini-1.5-flash\n\n" +
 		"Теперь вы можете использовать Gemini AI для помощи с учебой!"
 
-       keyboard := tgbotapi.NewInlineKeyboardMarkup(
-	       tgbotapi.NewInlineKeyboardRow(
-		       tgbotapi.NewInlineKeyboardButtonData("🤖 Использовать Gemini", "gemini"),
-	       ),
-	       tgbotapi.NewInlineKeyboardRow(
-		       tgbotapi.NewInlineKeyboardButtonData("🏠 Главное меню", "start"),
-	       ),
-       )
+	keyboard := tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("🤖 Использовать Gemini", "gemini"),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("🏠 Главное меню", "start"),
+		),
+	)
 
 	return b.SendMessage(user.ChatID, text, keyboard)
 }
