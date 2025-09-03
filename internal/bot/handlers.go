@@ -49,6 +49,9 @@ func (b *Bot) HandleMessage(message *tgbotapi.Message) error {
 	case "message_compose_text":
 		return b.handleMessageText(user, text)
 	case "gemini_api_setup":
+		// Удаляем сообщение с API ключом для безопасности
+		deleteMsg := tgbotapi.NewDeleteMessage(message.Chat.ID, message.MessageID)
+		b.API.Send(deleteMsg)
 		return b.handleGeminiAPISetup(user, text)
 	case "gemini_chat":
 		return b.handleGeminiChat(user, text)
@@ -1342,17 +1345,38 @@ func (b *Bot) handleGeminiChat(user *UserState, message string) error {
 		return b.SendMessage(user.ChatID, "❌ API ключ не настроен. Используйте /gemini_setup", nil)
 	}
 
+	// Проверяем валидность сообщения
+	if len(strings.TrimSpace(message)) == 0 {
+		return b.SendMessage(user.ChatID, "❌ Пожалуйста, введите вопрос", nil)
+	}
+
 	// Отправляем сообщение о том, что обрабатываем запрос
-	_ = b.SendMessage(user.ChatID, "🤔 Gemini думает...", nil)
+	processingMsg := tgbotapi.NewMessage(user.ChatID, "🤔 Gemini думает...")
+	sentMsg, _ := b.API.Send(processingMsg)
 
 	// Создаем клиент Gemini
 	client := gemini.NewClient(user.GeminiAPIKey, user.GeminiModel)
 
 	// Отправляем сообщение в Gemini
 	response, err := client.SendMessage(message, user.GeminiContext)
+	
+	// Удаляем сообщение "думает"
+	if sentMsg.MessageID != 0 {
+		deleteMsg := tgbotapi.NewDeleteMessage(user.ChatID, sentMsg.MessageID)
+		b.API.Send(deleteMsg)
+	}
+
 	if err != nil {
 		user.State = "idle"
-		return b.SendMessage(user.ChatID, fmt.Sprintf("❌ Ошибка Gemini: %v", err), nil)
+		return b.SendMessage(user.ChatID, fmt.Sprintf("❌ Ошибка Gemini: %v\n\nПопробуйте еще раз или проверьте API ключ.", err), nil)
+	}
+
+	// Очищаем ответ от потенциально проблемных символов
+	response = strings.ReplaceAll(response, "\u0000", "")
+	response = strings.TrimSpace(response)
+
+	if response == "" {
+		return b.SendMessage(user.ChatID, "❌ Gemini вернул пустой ответ. Попробуйте переформулировать вопрос.", nil)
 	}
 
 	// Ограничиваем длину ответа (Telegram ограничивает до 4096 символов)

@@ -19,7 +19,7 @@ type Client struct {
 func NewClient(apiKey, model string) *Client {
 	return &Client{
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: 60 * time.Second, // Увеличиваем таймаут для Gemini
 		},
 		apiKey: apiKey,
 		model:  model,
@@ -61,6 +61,11 @@ type GeminiError struct {
 
 // SendMessage отправляет сообщение в Gemini и получает ответ
 func (c *Client) SendMessage(message string, context string) (string, error) {
+	// Проверяем входные данные
+	if strings.TrimSpace(message) == "" {
+		return "", fmt.Errorf("сообщение не может быть пустым")
+	}
+
 	// Формируем полный запрос с контекстом
 	fullMessage := message
 	if context != "" {
@@ -92,7 +97,8 @@ func (c *Client) SendMessage(message string, context string) (string, error) {
 		return "", fmt.Errorf("ошибка создания запроса: %w", err)
 	}
 
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	req.Header.Set("Accept", "application/json")
 
 	// Отправляем запрос
 	resp, err := c.httpClient.Do(req)
@@ -100,6 +106,11 @@ func (c *Client) SendMessage(message string, context string) (string, error) {
 		return "", fmt.Errorf("ошибка отправки запроса: %w", err)
 	}
 	defer resp.Body.Close()
+
+	// Проверяем статус ответа
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("неожиданный статус ответа: %d", resp.StatusCode)
+	}
 
 	// Читаем ответ
 	var geminiResp GeminiResponse
@@ -117,7 +128,17 @@ func (c *Client) SendMessage(message string, context string) (string, error) {
 		return "", fmt.Errorf("получен пустой ответ от Gemini")
 	}
 
-	return geminiResp.Candidates[0].Content.Parts[0].Text, nil
+	response := geminiResp.Candidates[0].Content.Parts[0].Text
+	
+	// Очищаем ответ от потенциально проблемных символов
+	response = strings.ReplaceAll(response, "\u0000", "")
+	response = strings.TrimSpace(response)
+
+	if response == "" {
+		return "", fmt.Errorf("получен пустой текст ответа от Gemini")
+	}
+
+	return response, nil
 }
 
 // ValidateAPIKey проверяет валидность API ключа
