@@ -1261,14 +1261,14 @@ func (b *Bot) handleGeminiAPISetup(user *UserState, apiKey string) error {
 		"🧠 Выбрана модель: gemini-1.5-flash\n\n" +
 		"Теперь вы можете использовать Gemini AI для помощи с учебой!"
 
-	keyboard := tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("🤖 Использовать Gemini", "gemini"),
-		),
-		tgbotapi.NewInlineKeyboardMarkup(
-			tgbotapi.NewInlineKeyboardButtonData("🏠 Главное меню", "start"),
-		),
-	)
+       keyboard := tgbotapi.NewInlineKeyboardMarkup(
+	       tgbotapi.NewInlineKeyboardRow(
+		       tgbotapi.NewInlineKeyboardButtonData("🤖 Использовать Gemini", "gemini"),
+	       ),
+	       tgbotapi.NewInlineKeyboardRow(
+		       tgbotapi.NewInlineKeyboardButtonData("🏠 Главное меню", "start"),
+	       ),
+       )
 
 	return b.SendMessage(user.ChatID, text, keyboard)
 }
