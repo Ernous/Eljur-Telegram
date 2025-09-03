@@ -307,13 +307,7 @@ func (b *Bot) handleWeekSelect(user *UserState, data string) error {
 		return b.SendMessage(user.ChatID, fmt.Sprintf("❌ Ошибка получения дневника: %v", err), nil)
 	}
 
-	// Логируем структуру результата для диагностики
-	fmt.Printf("[DIARY_DEBUG] Полная структура результата: %+v\n", diary.Response.Result)
-	fmt.Printf("[DIARY_DEBUG] Ключи в результате: ")
-	for key := range diary.Response.Result {
-		fmt.Printf("%s ", key)
-	}
-	fmt.Printf("\n")
+	
 
 	return b.formatDiary(user, diary)
 }
@@ -335,117 +329,134 @@ func (b *Bot) formatDiary(user *UserState, diary *eljur.DiaryResponse) error {
 		if studentsMap, ok := studentsData.(map[string]interface{}); ok {
 			// Проходим по каждому студенту
 			for _, studentInfo := range studentsMap {
-				// studentInfo должно содержать данные студента и его дни
+				// studentInfo должно содержать данные студента
 				if studentData, ok := studentInfo.(map[string]interface{}); ok {
 					
-					// Собираем все даты и сортируем их
-					var dates []string
-					daysData := make(map[string]interface{})
-					
-					// Ищем все даты в данных студента
-					for key, value := range studentData {
-						// Проверяем, является ли ключ датой (формат YYYYMMDD)
-						if len(key) == 8 && isDate(key) {
-							dates = append(dates, key)
-							daysData[key] = value
-						}
+					// Ищем поле "days" в данных студента
+					daysData, hasDays := studentData["days"]
+					if !hasDays {
+						diaryText.WriteString("📝 Данные о днях не найдены")
+						continue
 					}
 					
-					// Сортируем даты
-					for i := 0; i < len(dates); i++ {
-						for j := i + 1; j < len(dates); j++ {
-							if dates[i] > dates[j] {
-								dates[i], dates[j] = dates[j], dates[i]
+					// days должно быть объектом с датами как ключами
+					if daysMap, ok := daysData.(map[string]interface{}); ok {
+						// Собираем все даты и сортируем их
+						var dates []string
+						for dateKey := range daysMap {
+							if len(dateKey) == 8 && isDate(dateKey) {
+								dates = append(dates, dateKey)
 							}
 						}
-					}
-					
-					// Отображаем информацию по дням
-					for _, dateKey := range dates {
-						dayInfo := daysData[dateKey]
-						if dayData, ok := dayInfo.(map[string]interface{}); ok {
-							title, _ := dayData["title"].(string)
-							if title == "" {
-								title = formatDateRu(dateKey)
-							}
-							
-							diaryText.WriteString(fmt.Sprintf("📅 *%s*\n", title))
-							
-							// Ищем уроки в items
-							itemsData, hasItems := dayData["items"]
-							if !hasItems {
-								diaryText.WriteString("   Уроков нет\n\n")
-								continue
-							}
-							
-							items, ok := itemsData.(map[string]interface{})
-							if !ok || len(items) == 0 {
-								diaryText.WriteString("   Уроков нет\n\n")
-								continue
-							}
-							
-							hasLessons = true
-							
-							// Сортируем уроки по номеру
-							var lessonNumbers []string
-							for lessonNum := range items {
-								lessonNumbers = append(lessonNumbers, lessonNum)
-							}
-							
-							// Простая сортировка номеров уроков
-							for i := 0; i < len(lessonNumbers); i++ {
-								for j := i + 1; j < len(lessonNumbers); j++ {
-									num1, _ := strconv.Atoi(lessonNumbers[i])
-									num2, _ := strconv.Atoi(lessonNumbers[j])
-									if num1 > num2 {
-										lessonNumbers[i], lessonNumbers[j] = lessonNumbers[j], lessonNumbers[i]
-									}
+						
+						// Сортируем даты
+						for i := 0; i < len(dates); i++ {
+							for j := i + 1; j < len(dates); j++ {
+								if dates[i] > dates[j] {
+									dates[i], dates[j] = dates[j], dates[i]
 								}
 							}
-							
-							// Отображаем уроки
-							for _, lessonNum := range lessonNumbers {
-								if lessonData, exists := items[lessonNum]; exists {
-									if lesson, ok := lessonData.(map[string]interface{}); ok {
-										name, _ := lesson["name"].(string)
-										teacher, _ := lesson["teacher"].(string)
-										room, _ := lesson["room"].(string)
-										starttime, _ := lesson["starttime"].(string)
-										endtime, _ := lesson["endtime"].(string)
-										
-										diaryText.WriteString(fmt.Sprintf("   %s. %s", lessonNum, name))
-										
-										if teacher != "" {
-											diaryText.WriteString(fmt.Sprintf("\n      👨‍🏫 %s", teacher))
+						}
+						
+						// Отображаем информацию по дням
+						for _, dateKey := range dates {
+							if dayInfo, exists := daysMap[dateKey]; exists {
+								if dayData, ok := dayInfo.(map[string]interface{}); ok {
+									title, _ := dayData["title"].(string)
+									if title == "" {
+										title = formatDateRu(dateKey)
+									}
+									
+									diaryText.WriteString(fmt.Sprintf("📅 *%s*\n", title))
+									
+									// Проверяем есть ли праздник
+									if alert, hasAlert := dayData["alert"]; hasAlert {
+										if alert == "holiday" {
+											if holidayName, ok := dayData["holiday_name"].(string); ok {
+												diaryText.WriteString(fmt.Sprintf("   🎉 %s\n", holidayName))
+											}
+										} else if alert == "today" {
+											diaryText.WriteString("   📍 Сегодня\n")
 										}
-										
-										if room != "" {
-											diaryText.WriteString(fmt.Sprintf("\n      🏫 Кабинет %s", room))
+									}
+									
+									// Ищем уроки в items
+									itemsData, hasItems := dayData["items"]
+									if !hasItems {
+										diaryText.WriteString("   Уроков нет\n\n")
+										continue
+									}
+									
+									items, ok := itemsData.(map[string]interface{})
+									if !ok || len(items) == 0 {
+										diaryText.WriteString("   Уроков нет\n\n")
+										continue
+									}
+									
+									hasLessons = true
+									
+									// Сортируем уроки по номеру
+									var lessonNumbers []string
+									for lessonNum := range items {
+										lessonNumbers = append(lessonNumbers, lessonNum)
+									}
+									
+									// Простая сортировка номеров уроков
+									for i := 0; i < len(lessonNumbers); i++ {
+										for j := i + 1; j < len(lessonNumbers); j++ {
+											num1, _ := strconv.Atoi(lessonNumbers[i])
+											num2, _ := strconv.Atoi(lessonNumbers[j])
+											if num1 > num2 {
+												lessonNumbers[i], lessonNumbers[j] = lessonNumbers[j], lessonNumbers[i]
+											}
 										}
-										
-										if starttime != "" && endtime != "" {
-											diaryText.WriteString(fmt.Sprintf("\n      ⏰ %s - %s", starttime, endtime))
-										}
-										
-										// Проверяем домашнее задание
-										if homeworkData, ok := lesson["homework"]; ok {
-											if homework, ok := homeworkData.(map[string]interface{}); ok && len(homework) > 0 {
-												diaryText.WriteString("\n      📝 ДЗ:")
-												for _, hwData := range homework {
-													if hw, ok := hwData.(map[string]interface{}); ok {
-														if value, ok := hw["value"].(string); ok && value != "" {
-															diaryText.WriteString(fmt.Sprintf(" %s", value))
+									}
+									
+									// Отображаем уроки
+									for _, lessonNum := range lessonNumbers {
+										if lessonData, exists := items[lessonNum]; exists {
+											if lesson, ok := lessonData.(map[string]interface{}); ok {
+												name, _ := lesson["name"].(string)
+												teacher, _ := lesson["teacher"].(string)
+												room, _ := lesson["room"].(string)
+												starttime, _ := lesson["starttime"].(string)
+												endtime, _ := lesson["endtime"].(string)
+												
+												diaryText.WriteString(fmt.Sprintf("   %s. %s", lessonNum, name))
+												
+												if teacher != "" {
+													diaryText.WriteString(fmt.Sprintf("\n      👨‍🏫 %s", teacher))
+												}
+												
+												if room != "" && room != " " {
+													diaryText.WriteString(fmt.Sprintf("\n      🏫 Кабинет %s", room))
+												}
+												
+												if starttime != "" && endtime != "" {
+													diaryText.WriteString(fmt.Sprintf("\n      ⏰ %s - %s", starttime, endtime))
+												}
+												
+												// Проверяем домашнее задание
+												if homeworkData, ok := lesson["homework"]; ok {
+													if homework, ok := homeworkData.(map[string]interface{}); ok && len(homework) > 0 {
+														diaryText.WriteString("\n      📝 ДЗ:")
+														for _, hwData := range homework {
+															if hw, ok := hwData.(map[string]interface{}); ok {
+																if value, ok := hw["value"].(string); ok && value != "" {
+																	diaryText.WriteString(fmt.Sprintf(" %s", value))
+																}
+															}
 														}
 													}
 												}
+												
+												diaryText.WriteString("\n")
 											}
 										}
-										
-										diaryText.WriteString("\n")
 									}
+									diaryText.WriteString("\n")
 								}
 							}
-							diaryText.WriteString("\n")
 						}
 					}
 				}
