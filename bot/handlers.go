@@ -524,11 +524,11 @@ func (b *Bot) formatDiary(user *UserState, diary *eljur.DiaryResponse) error {
 									diaryText.WriteString("\n")
 								}
 							}
+						} else {
+							diaryText.WriteString("📝 Ошибка обработки данных студентов")
 						}
 					}
 				}
-			} else {
-				diaryText.WriteString("📝 Ошибка обработки данных студентов")
 			}
 		}
 	}
