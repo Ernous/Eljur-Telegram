@@ -1,12 +1,17 @@
 {
-  "functions": {
-    "api/webhook.go": {
-      "runtime": "vercel-go@3.0.0"
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/webhook.go",
+      "use": "@vercel/go",
+      "config": {
+        "maxDuration": 10
+      }
     }
-  },
+  ],
   "routes": [
     {
-      "src": "/api/webhook",
+      "src": "/(.*)",
       "dest": "/api/webhook.go"
     }
   ]
