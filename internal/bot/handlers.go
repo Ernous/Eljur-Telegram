@@ -307,8 +307,6 @@ func (b *Bot) handleWeekSelect(user *UserState, data string) error {
 		return b.SendMessage(user.ChatID, fmt.Sprintf("❌ Ошибка получения дневника: %v", err), nil)
 	}
 
-	
-
 	return b.formatDiary(user, diary)
 }
 
@@ -319,7 +317,7 @@ func (b *Bot) formatDiary(user *UserState, diary *eljur.DiaryResponse) error {
 
 	result := diary.Response.Result
 	hasLessons := false
-	
+
 	// Ищем ключ "students" в результате
 	studentsData, hasStudents := result["students"]
 	if !hasStudents {
@@ -331,14 +329,14 @@ func (b *Bot) formatDiary(user *UserState, diary *eljur.DiaryResponse) error {
 			for _, studentInfo := range studentsMap {
 				// studentInfo должно содержать данные студента
 				if studentData, ok := studentInfo.(map[string]interface{}); ok {
-					
+
 					// Ищем поле "days" в данных студента
 					daysData, hasDays := studentData["days"]
 					if !hasDays {
 						diaryText.WriteString("📝 Данные о днях не найдены")
 						continue
 					}
-					
+
 					// days должно быть объектом с датами как ключами
 					if daysMap, ok := daysData.(map[string]interface{}); ok {
 						// Собираем все даты и сортируем их
@@ -348,7 +346,7 @@ func (b *Bot) formatDiary(user *UserState, diary *eljur.DiaryResponse) error {
 								dates = append(dates, dateKey)
 							}
 						}
-						
+
 						// Сортируем даты
 						for i := 0; i < len(dates); i++ {
 							for j := i + 1; j < len(dates); j++ {
@@ -357,7 +355,7 @@ func (b *Bot) formatDiary(user *UserState, diary *eljur.DiaryResponse) error {
 								}
 							}
 						}
-						
+
 						// Отображаем информацию по дням
 						for _, dateKey := range dates {
 							if dayInfo, exists := daysMap[dateKey]; exists {
@@ -366,9 +364,9 @@ func (b *Bot) formatDiary(user *UserState, diary *eljur.DiaryResponse) error {
 									if title == "" {
 										title = formatDateRu(dateKey)
 									}
-									
+
 									diaryText.WriteString(fmt.Sprintf("📅 *%s*\n", title))
-									
+
 									// Проверяем есть ли праздник
 									if alert, hasAlert := dayData["alert"]; hasAlert {
 										if alert == "holiday" {
@@ -379,28 +377,28 @@ func (b *Bot) formatDiary(user *UserState, diary *eljur.DiaryResponse) error {
 											diaryText.WriteString("   📍 Сегодня\n")
 										}
 									}
-									
+
 									// Ищем уроки в items
 									itemsData, hasItems := dayData["items"]
 									if !hasItems {
 										diaryText.WriteString("   Уроков нет\n\n")
 										continue
 									}
-									
+
 									items, ok := itemsData.(map[string]interface{})
 									if !ok || len(items) == 0 {
 										diaryText.WriteString("   Уроков нет\n\n")
 										continue
 									}
-									
+
 									hasLessons = true
-									
+
 									// Сортируем уроки по номеру
 									var lessonNumbers []string
 									for lessonNum := range items {
 										lessonNumbers = append(lessonNumbers, lessonNum)
 									}
-									
+
 									// Простая сортировка номеров уроков
 									for i := 0; i < len(lessonNumbers); i++ {
 										for j := i + 1; j < len(lessonNumbers); j++ {
@@ -411,7 +409,7 @@ func (b *Bot) formatDiary(user *UserState, diary *eljur.DiaryResponse) error {
 											}
 										}
 									}
-									
+
 									// Отображаем уроки
 									for _, lessonNum := range lessonNumbers {
 										if lessonData, exists := items[lessonNum]; exists {
@@ -421,21 +419,21 @@ func (b *Bot) formatDiary(user *UserState, diary *eljur.DiaryResponse) error {
 												room, _ := lesson["room"].(string)
 												starttime, _ := lesson["starttime"].(string)
 												endtime, _ := lesson["endtime"].(string)
-												
+
 												diaryText.WriteString(fmt.Sprintf("   %s. %s", lessonNum, name))
-												
+
 												if teacher != "" {
 													diaryText.WriteString(fmt.Sprintf("\n      👨‍🏫 %s", teacher))
 												}
-												
+
 												if room != "" && room != " " {
 													diaryText.WriteString(fmt.Sprintf("\n      🏫 Кабинет %s", room))
 												}
-												
+
 												if starttime != "" && endtime != "" {
 													diaryText.WriteString(fmt.Sprintf("\n      ⏰ %s - %s", starttime, endtime))
 												}
-												
+
 												// Проверяем домашнее задание
 												if homeworkData, ok := lesson["homework"]; ok {
 													if homework, ok := homeworkData.(map[string]interface{}); ok && len(homework) > 0 {
@@ -449,7 +447,7 @@ func (b *Bot) formatDiary(user *UserState, diary *eljur.DiaryResponse) error {
 														}
 													}
 												}
-												
+
 												diaryText.WriteString("\n")
 											}
 										}
@@ -465,7 +463,7 @@ func (b *Bot) formatDiary(user *UserState, diary *eljur.DiaryResponse) error {
 			diaryText.WriteString("📝 Ошибка обработки данных студентов")
 		}
 	}
-	
+
 	if !hasLessons {
 		diaryText.WriteString("📝 Уроков на этой неделе нет")
 	}
@@ -485,18 +483,18 @@ func isDate(s string) bool {
 	if len(s) != 8 {
 		return false
 	}
-	
+
 	for _, r := range s {
 		if r < '0' || r > '9' {
 			return false
 		}
 	}
-	
+
 	// Простая проверка на валидную дату
 	year, _ := strconv.Atoi(s[:4])
 	month, _ := strconv.Atoi(s[4:6])
 	day, _ := strconv.Atoi(s[6:8])
-	
+
 	return year >= 2020 && year <= 2030 && month >= 1 && month <= 12 && day >= 1 && day <= 31
 }
 
@@ -610,7 +608,15 @@ func (b *Bot) showMessages(user *UserState, folder string) error {
 				readStatus = "📩"
 			}
 
-			sender := msg.From
+			// Формируем имя отправителя из новой структуры
+			sender := ""
+			if msg.UserFrom.FirstName != "" || msg.UserFrom.LastName != "" {
+				sender = fmt.Sprintf("%s %s", msg.UserFrom.LastName, msg.UserFrom.FirstName)
+				sender = strings.TrimSpace(sender)
+			}
+			if sender == "" {
+				sender = "Неизвестный"
+			}
 			if len(sender) > 20 {
 				sender = sender[:20] + "..."
 			}
@@ -707,7 +713,7 @@ func (b *Bot) handleReadMessage(user *UserState, data string) error {
 	text = strings.ReplaceAll(text, "<br />", "\n")
 	text = strings.ReplaceAll(text, "<br/>", "\n")
 	text = strings.ReplaceAll(text, "<br>", "\n")
-	
+
 	if text == "" {
 		text = "_Текст сообщения отсутствует_"
 	}
@@ -852,7 +858,7 @@ func (b *Bot) handleSchedule(user *UserState) error {
 	} else {
 		student := schedule.Response.Result.Students[0]
 		for _, day := range student.Days {
-			// Преобразуем дату в читаемый формат
+			// Преобразуем дату в читабьый формат
 			dayFormatted := formatDateRu(day.Date)
 			text += fmt.Sprintf("📅 *%s*\n", dayFormatted)
 
