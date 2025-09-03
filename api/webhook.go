@@ -8,6 +8,7 @@ import (
         "os"
 
         "school-diary-bot/internal/bot"
+        "school-diary-bot/internal/eljur"
         tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
@@ -16,6 +17,13 @@ func Webhook(w http.ResponseWriter, r *http.Request) {
         // Проверяем метод запроса
         if r.Method != "POST" {
                 http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+                return
+        }
+
+        // Проверяем наличие необходимых переменных окружения
+        if err := eljur.ValidateConfig(); err != nil {
+                log.Printf("Ошибка конфигурации: %v", err)
+                http.Error(w, "Configuration error", http.StatusInternalServerError)
                 return
         }
 

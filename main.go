@@ -5,10 +5,16 @@ import (
         "os"
 
         "school-diary-bot/internal/bot"
+        "school-diary-bot/internal/eljur"
         tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
 func main() {
+        // Проверяем наличие необходимых переменных окружения
+        if err := eljur.ValidateConfig(); err != nil {
+                log.Fatal("Ошибка конфигурации:", err)
+        }
+
         // Получаем токен бота из переменных окружения
         botToken := os.Getenv("TELEGRAM_BOT_TOKEN")
         if botToken == "" {

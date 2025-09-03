@@ -10,13 +10,13 @@
    ```bash
    export TELEGRAM_BOT_TOKEN="ваш_токен_бота"
    export ELJUR_API_URL="https://eljur.gospmr.org/apiv3/"
-   export ELJUR_DEV_KEY="dd06cf484d85581e1976d93c639deee7"
+   export ELJUR_DEV_KEY="ваш_ключ_разработчика_эльжур"
    ```
    
    Или скопируйте `.env.example` в `.env` и отредактируйте:
    ```bash
    cp .env.example .env
-   # Отредактируйте .env файл
+   # Отредактируйте .env файл, указав свои значения
    ```
 
 3. **Запустите локально:**
@@ -36,7 +36,7 @@
 В панели Vercel добавьте:
 - `TELEGRAM_BOT_TOKEN` = ваш токен бота
 - `ELJUR_API_URL` = https://eljur.gospmr.org/apiv3/
-- `ELJUR_DEV_KEY` = dd06cf484d85581e1976d93c639deee7
+- `ELJUR_DEV_KEY` = ваш ключ разработчика Эльжур
 
 ### 3. Настройка webhook
 

@@ -21,10 +21,7 @@ func getBaseURL() string {
 
 // getDevKey возвращает ключ разработчика из переменных окружения
 func getDevKey() string {
-        if key := os.Getenv("ELJUR_DEV_KEY"); key != "" {
-                return key
-        }
-        return "dd06cf484d85581e1976d93c639deee7" // Значение по умолчанию
+        return os.Getenv("ELJUR_DEV_KEY")
 }
 
 // Client представляет клиент для работы с API Эльжур
@@ -45,6 +42,17 @@ func NewClient() *Client {
                 },
                 cookies: make(map[string]string),
         }
+}
+
+// ValidateConfig проверяет наличие необходимых переменных окружения
+func ValidateConfig() error {
+        if getDevKey() == "" {
+                return fmt.Errorf("ELJUR_DEV_KEY environment variable is required")
+        }
+        if getBaseURL() == "" {
+                return fmt.Errorf("ELJUR_API_URL environment variable is required")
+        }
+        return nil
 }
 
 // Response представляет базовую структуру ответа API
