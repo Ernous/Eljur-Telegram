@@ -9,6 +9,32 @@ import (
         tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
+// formatDateRu преобразует дату из формата YYYYMMDD в русский формат
+func formatDateRu(dateStr string) string {
+        if len(dateStr) != 8 {
+                return dateStr
+        }
+        
+        year := dateStr[:4]
+        month := dateStr[4:6]
+        day := dateStr[6:8]
+        
+        monthNames := map[string]string{
+                "01": "января", "02": "февраля", "03": "марта", "04": "апреля",
+                "05": "мая", "06": "июня", "07": "июля", "08": "августа", 
+                "09": "сентября", "10": "октября", "11": "ноября", "12": "декабря",
+        }
+        
+        monthName := monthNames[month]
+        if monthName == "" {
+                monthName = month
+        }
+        
+        // Убираем ведущий ноль из дня
+        dayInt, _ := strconv.Atoi(day)
+        return fmt.Sprintf("%d %s %s", dayInt, monthName, year)
+}
+
 // HandleMessage обрабатывает текстовые сообщения
 func (b *Bot) HandleMessage(message *tgbotapi.Message) error {
         user := b.GetUserState(message.Chat.ID)
@@ -154,7 +180,9 @@ func (b *Bot) handleAuthInput(user *UserState, text string) error {
                         return b.SendMessage(user.ChatID, fmt.Sprintf("❌ Ошибка авторизации: %v\n\nПопробуйте еще раз с помощью /login", err), nil)
                 }
                 
-                return b.SendMessage(user.ChatID, "✅ Авторизация успешна! Теперь вам доступны все функции дневника.", nil)
+                // После успешной авторизации показываем главное меню
+                _ = b.SendMessage(user.ChatID, "✅ Авторизация успешна! Теперь вам доступны все функции дневника.", nil)
+                return b.handleStart(user)
         }
         
         return nil
@@ -169,6 +197,8 @@ func (b *Bot) HandleCallback(query *tgbotapi.CallbackQuery) error {
         b.AnswerCallback(query.ID, "")
 
         switch {
+        case data == "start":
+                return b.handleStart(user)
         case data == "diary":
                 return b.handleDiary(user)
         case data == "periods":
@@ -183,10 +213,16 @@ func (b *Bot) HandleCallback(query *tgbotapi.CallbackQuery) error {
                 return b.handleLogin(user)
         case data == "help":
                 return b.handleHelp(user)
+        case data == "clear_chat":
+                return b.handleClearChat(user)
         case strings.HasPrefix(data, "week_"):
                 return b.handleWeekSelect(user, data)
         case strings.HasPrefix(data, "period_"):
                 return b.handlePeriodSelect(user, data)
+        case strings.HasPrefix(data, "msg_read_"):
+                return b.handleReadMessage(user, data)
+        case strings.HasPrefix(data, "compose_to_"):
+                return b.handleSelectRecipient(user, data)
         case strings.HasPrefix(data, "msg_"):
                 return b.handleMessageAction(user, data)
         default:
@@ -230,9 +266,14 @@ func (b *Bot) showWeekSelection(user *UserState, period eljur.Period) error {
                         keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{})
                 }
                 
-                weekData := fmt.Sprintf("week_%s_%s", period.Name, week.Start)
+                // Преобразуем даты в читаблый формат
+                startFormatted := formatDateRu(week.Start)
+                endFormatted := formatDateRu(week.End)
+                weekTitle := fmt.Sprintf("%s - %s", startFormatted, endFormatted)
+                
+                weekData := fmt.Sprintf("week_%s_%s_%s", period.Name, week.Start, week.End)
                 button := tgbotapi.NewInlineKeyboardButtonData(
-                        fmt.Sprintf("📅 %s", week.Title),
+                        fmt.Sprintf("📅 %s", weekTitle),
                         weekData,
                 )
                 
@@ -250,12 +291,12 @@ func (b *Bot) showWeekSelection(user *UserState, period eljur.Period) error {
 // handleWeekSelect обрабатывает выбор недели
 func (b *Bot) handleWeekSelect(user *UserState, data string) error {
         parts := strings.Split(data, "_")
-        if len(parts) < 3 {
+        if len(parts) < 4 {
                 return b.SendMessage(user.ChatID, "❌ Ошибка выбора недели", nil)
         }
 
         startDate := parts[2]
-        endDate := "20250518" // Пример окончания недели
+        endDate := parts[3]
         
         days := fmt.Sprintf("%s-%s", startDate, endDate)
         user.CurrentWeek = days
@@ -279,7 +320,9 @@ func (b *Bot) formatDiary(user *UserState, diary *eljur.DiaryResponse) error {
         text := "📚 *Дневник*\n\n"
 
         for _, day := range student.Days {
-                text += fmt.Sprintf("📅 *%s*\n", day.Date)
+                // Преобразуем дату в читаемый формат
+                dayFormatted := formatDateRu(day.Date)
+                text += fmt.Sprintf("📅 *%s*\n", dayFormatted)
                 
                 if len(day.Lessons) == 0 {
                         text += "   _Занятий нет_\n\n"
@@ -340,7 +383,9 @@ func (b *Bot) handlePeriods(user *UserState) error {
                 }
                 
                 text += fmt.Sprintf("%s *%s*\n", status, period.FullName)
-                text += fmt.Sprintf("   📅 %s - %s\n", period.Start, period.End)
+                startFormatted := formatDateRu(period.Start)
+                endFormatted := formatDateRu(period.End)
+                text += fmt.Sprintf("   📅 %s - %s\n", startFormatted, endFormatted)
                 text += fmt.Sprintf("   📊 Недель: %d\n\n", len(period.Weeks))
         }
 
@@ -389,7 +434,7 @@ func (b *Bot) handleMessageAction(user *UserState, action string) error {
         }
 }
 
-// showMessages показывает список сообщений
+// showMessages показывает список сообщений как интерактивные кнопки
 func (b *Bot) showMessages(user *UserState, folder string) error {
         messages, err := user.Client.GetMessages(folder)
         if err != nil {
@@ -401,41 +446,154 @@ func (b *Bot) showMessages(user *UserState, folder string) error {
                 folderName = "📤 Отправленные"
         }
 
-        text := fmt.Sprintf("💬 *%s сообщения:*\n\n", folderName)
+        text := fmt.Sprintf("💬 *%s сообщения:*\n\nНажмите на сообщение для просмотра:", folderName)
+        var keyboard [][]tgbotapi.InlineKeyboardButton
 
         if len(messages.Response.Result.Messages) == 0 {
-                text += "_Сообщений нет_"
+                text += "\n\n_Сообщений нет_"
         } else {
                 for i, msg := range messages.Response.Result.Messages {
-                        if i >= 10 { // Показываем только первые 10 сообщений
-                                text += "...\n"
+                        if i >= 15 { // Показываем только первые 15 сообщений
                                 break
                         }
                         
+                        subject := msg.Subject
+                        if len(subject) > 35 {
+                                subject = subject[:35] + "..."
+                        }
+                        
+                        // Определяем статус прочтения и отправителя
                         readStatus := "📖"
                         if !msg.Read {
                                 readStatus = "📩"
                         }
                         
-                        text += fmt.Sprintf("%s *%s*\n", readStatus, msg.Subject)
-                        text += fmt.Sprintf("   От: %s\n", msg.From)
-                        text += fmt.Sprintf("   Дата: %s\n\n", msg.Date)
+                        sender := msg.From
+                        if len(sender) > 20 {
+                                sender = sender[:20] + "..."
+                        }
+                        
+                        // Создаем кнопку для каждого сообщения
+                        buttonText := fmt.Sprintf("%s %s\n👤 %s", readStatus, subject, sender)
+                        callbackData := fmt.Sprintf("msg_read_%s_%s", folder, msg.ID)
+                        
+                        button := tgbotapi.NewInlineKeyboardButtonData(buttonText, callbackData)
+                        keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{button})
                 }
         }
 
+        // Добавляем кнопки управления
+        keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
+                tgbotapi.NewInlineKeyboardButtonData("🔄 Обновить", fmt.Sprintf("msg_%s", folder)),
+                tgbotapi.NewInlineKeyboardButtonData("🗑 Очистить чат", "clear_chat"),
+        })
+        keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
+                tgbotapi.NewInlineKeyboardButtonData("🔙 Назад", "messages"),
+        })
+
+        return b.SendMessage(user.ChatID, text, tgbotapi.NewInlineKeyboardMarkup(keyboard...))
+}
+
+// handleClearChat очищает чат
+func (b *Bot) handleClearChat(user *UserState) error {
+        // Отправляем множество пустых сообщений чтобы "очистить" чат
+        for i := 0; i < 20; i++ {
+                _ = b.SendMessage(user.ChatID, ".", nil)
+        }
+        
+        return b.SendMessage(user.ChatID, "🗑 *Чат очищен*\n\nВыберите действие:", 
+                tgbotapi.NewInlineKeyboardMarkup(
+                        tgbotapi.NewInlineKeyboardRow(
+                                tgbotapi.NewInlineKeyboardButtonData("🏠 Главное меню", "start"),
+                        ),
+                ))
+}
+
+// handleReadMessage показывает содержимое сообщения
+func (b *Bot) handleReadMessage(user *UserState, data string) error {
+        parts := strings.Split(data, "_")
+        if len(parts) < 4 {
+                return b.SendMessage(user.ChatID, "❌ Ошибка открытия сообщения", nil)
+        }
+        
+        folder := parts[2]
+        messageID := parts[3]
+        
+        // Получаем детали сообщения
+        msgDetails, err := user.Client.GetMessageDetails(messageID)
+        if err != nil {
+                return b.SendMessage(user.ChatID, fmt.Sprintf("❌ Ошибка получения сообщения: %v", err), nil)
+        }
+        
+        if msgDetails.Response.State != 200 {
+                return b.SendMessage(user.ChatID, "❌ Сообщение не найдено", nil)
+        }
+        
+        msg := msgDetails.Response.Result
+        text := fmt.Sprintf("📨 *%s*\n\n", msg.Subject)
+        text += fmt.Sprintf("👤 **От:** %s\n", msg.From)
+        if msg.Date != "" {
+                dateFormatted := formatDateRu(msg.Date)
+                text += fmt.Sprintf("📅 **Дата:** %s\n\n", dateFormatted)
+        }
+        text += fmt.Sprintf("📝 **Сообщение:**\n%s", msg.Text)
+        
         keyboard := tgbotapi.NewInlineKeyboardMarkup(
                 tgbotapi.NewInlineKeyboardRow(
-                        tgbotapi.NewInlineKeyboardButtonData("🔙 Назад", "messages"),
+                        tgbotapi.NewInlineKeyboardButtonData("🔙 К сообщениям", fmt.Sprintf("msg_%s", folder)),
+                        tgbotapi.NewInlineKeyboardButtonData("🏠 Главное меню", "start"),
                 ),
         )
-
+        
         return b.SendMessage(user.ChatID, text, keyboard)
 }
 
-// startComposeMessage начинает создание сообщения
-func (b *Bot) startComposeMessage(user *UserState) error {
+// handleSelectRecipient обрабатывает выбор получателя для нового сообщения
+func (b *Bot) handleSelectRecipient(user *UserState, data string) error {
+        parts := strings.Split(data, "_")
+        if len(parts) < 3 {
+                return b.SendMessage(user.ChatID, "❌ Ошибка выбора получателя", nil)
+        }
+        
+        recipientID := parts[2]
+        user.TempRecipient = recipientID
         user.State = "message_compose_subject"
-        return b.SendMessage(user.ChatID, "✍️ *Написать сообщение*\n\nВведите тему сообщения:", nil)
+        
+        return b.SendMessage(user.ChatID, "✍️ *Новое сообщение*\n\n📝 Введите тему сообщения:", nil)
+}
+
+// startComposeMessage начинает создание сообщения с выбором получателя
+func (b *Bot) startComposeMessage(user *UserState) error {
+        // Получаем список получателей
+        receivers, err := user.Client.GetMessageReceivers()
+        if err != nil {
+                return b.SendMessage(user.ChatID, fmt.Sprintf("❌ Ошибка получения получателей: %v", err), nil)
+        }
+
+        if len(receivers.Response.Result.Receivers) == 0 {
+                return b.SendMessage(user.ChatID, "❌ Нет доступных получателей", nil)
+        }
+
+        text := "✍️ *Написать сообщение*\n\nВыберите получателя:"
+        var keyboard [][]tgbotapi.InlineKeyboardButton
+
+        for i, receiver := range receivers.Response.Result.Receivers {
+                if i >= 20 { // Показываем максимум 20 получателей
+                        break
+                }
+                
+                buttonText := fmt.Sprintf("👤 %s", receiver.Name)
+                callbackData := fmt.Sprintf("compose_to_%s", receiver.ID)
+                
+                button := tgbotapi.NewInlineKeyboardButtonData(buttonText, callbackData)
+                keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{button})
+        }
+
+        keyboard = append(keyboard, []tgbotapi.InlineKeyboardButton{
+                tgbotapi.NewInlineKeyboardButtonData("🔙 Назад", "messages"),
+        })
+
+        return b.SendMessage(user.ChatID, text, tgbotapi.NewInlineKeyboardMarkup(keyboard...))
 }
 
 // handleMessageSubject обрабатывает ввод темы сообщения
@@ -448,29 +606,48 @@ func (b *Bot) handleMessageSubject(user *UserState, subject string) error {
 // handleMessageText обрабатывает ввод текста сообщения
 func (b *Bot) handleMessageText(user *UserState, text string) error {
         subject := user.TempLogin
+        recipientID := user.TempRecipient
+        
+        // Очищаем временные данные
         user.TempLogin = ""
+        user.TempRecipient = ""
         user.State = "idle"
 
-        // Получаем список получателей
-        receivers, err := user.Client.GetMessageReceivers()
-        if err != nil {
-                return b.SendMessage(user.ChatID, fmt.Sprintf("❌ Ошибка получения получателей: %v", err), nil)
+        if recipientID == "" {
+                return b.SendMessage(user.ChatID, "❌ Получатель не выбран", nil)
         }
 
-        if len(receivers.Response.Result.Receivers) == 0 {
-                return b.SendMessage(user.ChatID, "❌ Нет доступных получателей", nil)
-        }
-
-        // Отправляем первому доступному получателю (для примера)
-        recipient := receivers.Response.Result.Receivers[0]
-        recipients := []string{recipient.ID}
-
-        _, err = user.Client.SendMessage(recipients, subject, text)
+        // Отправляем сообщение выбранному получателю
+        recipients := []string{recipientID}
+        
+        _, err := user.Client.SendMessage(recipients, subject, text)
         if err != nil {
                 return b.SendMessage(user.ChatID, fmt.Sprintf("❌ Ошибка отправки сообщения: %v", err), nil)
         }
 
-        return b.SendMessage(user.ChatID, fmt.Sprintf("✅ Сообщение отправлено получателю: %s", recipient.Name), nil)
+        // Получаем информацию о получателе для отображения
+        receivers, err := user.Client.GetMessageReceivers()
+        recipientName := recipientID
+        if err == nil {
+                for _, receiver := range receivers.Response.Result.Receivers {
+                        if receiver.ID == recipientID {
+                                recipientName = receiver.Name
+                                break
+                        }
+                }
+        }
+
+        keyboard := tgbotapi.NewInlineKeyboardMarkup(
+                tgbotapi.NewInlineKeyboardRow(
+                        tgbotapi.NewInlineKeyboardButtonData("✍️ Написать еще", "msg_compose"),
+                        tgbotapi.NewInlineKeyboardButtonData("📥 К сообщениям", "messages"),
+                ),
+                tgbotapi.NewInlineKeyboardRow(
+                        tgbotapi.NewInlineKeyboardButtonData("🏠 Главное меню", "start"),
+                ),
+        )
+
+        return b.SendMessage(user.ChatID, fmt.Sprintf("✅ **Сообщение отправлено!**\n\n👤 Получатель: %s\n📝 Тема: %s", recipientName, subject), keyboard)
 }
 
 // handleSchedule обрабатывает просмотр расписания
@@ -491,7 +668,9 @@ func (b *Bot) handleSchedule(user *UserState) error {
         } else {
                 student := schedule.Response.Result.Students[0]
                 for _, day := range student.Days {
-                        text += fmt.Sprintf("📅 *%s*\n", day.Date)
+                        // Преобразуем дату в читаемый формат
+                dayFormatted := formatDateRu(day.Date)
+                text += fmt.Sprintf("📅 *%s*\n", dayFormatted)
                         
                         if len(day.Lessons) == 0 {
                                 text += "   _Занятий нет_\n\n"
