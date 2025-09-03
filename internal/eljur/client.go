@@ -133,24 +133,34 @@ type DiaryResponse struct {
         Response struct {
                 State int `json:"state"`
                 Error string `json:"error,omitempty"`
-                Result struct {
-                        Students []struct {
-                                Name interface{} `json:"name"`
-                                Days []struct {
-                                        Date    string `json:"date"`
-                                        Lessons []struct {
-                                                Name   string `json:"name"`
-                                                Number int    `json:"number"`
-                                                Marks  []struct {
-                                                        Value string `json:"value"`
-                                                        Type  string `json:"type"`
-                                                } `json:"marks,omitempty"`
-                                                Homework string `json:"homework,omitempty"`
-                                        } `json:"lessons,omitempty"`
-                                } `json:"days,omitempty"`
-                        } `json:"students"`
-                } `json:"result,omitempty"`
+                Result map[string]interface{} `json:"result,omitempty"`
         } `json:"response"`
+}
+
+// DiaryStudent представляет студента в дневнике
+type DiaryStudent struct {
+        Name interface{} `json:"name"`
+        Days []DiaryDay  `json:"days,omitempty"`
+}
+
+// DiaryDay представляет день в дневнике
+type DiaryDay struct {
+        Date    string        `json:"date"`
+        Lessons []DiaryLesson `json:"lessons,omitempty"`
+}
+
+// DiaryLesson представляет урок в дневнике
+type DiaryLesson struct {
+        Name     string      `json:"name"`
+        Number   int         `json:"number"`
+        Marks    []DiaryMark `json:"marks,omitempty"`
+        Homework string      `json:"homework,omitempty"`
+}
+
+// DiaryMark представляет оценку
+type DiaryMark struct {
+        Value string `json:"value"`
+        Type  string `json:"type"`
 }
 
 // Message представляет сообщение
@@ -552,6 +562,8 @@ func (c *Client) GetDiary(days string) (*DiaryResponse, error) {
         params.Set("days", days)
         params.Set("rings", "true")
 
+        log.Printf("[DIARY] Запрашиваем дневник за период: %s", days)
+
         resp, err := c.makeRequest("GET", "getdiary", params, nil)
         if err != nil {
                 return nil, fmt.Errorf("ошибка запроса дневника: %w", err)
@@ -567,8 +579,11 @@ func (c *Client) GetDiary(days string) (*DiaryResponse, error) {
                 return nil, fmt.Errorf("ошибка чтения ответа: %w", err)
         }
 
+        log.Printf("[DIARY] Тело ответа: %s", string(body))
+
         var diaryResp DiaryResponse
         if err := json.Unmarshal(body, &diaryResp); err != nil {
+                log.Printf("[DIARY] Ошибка парсинга JSON: %v", err)
                 return nil, fmt.Errorf("ошибка парсинга JSON: %w", err)
         }
 
@@ -657,10 +672,15 @@ func (c *Client) GetMessageDetails(messageID string) (*MessageDetailsResponse, e
                 return nil, fmt.Errorf("ошибка чтения ответа: %w", err)
         }
 
+        log.Printf("[MESSAGE_DETAILS] Тело ответа: %s", string(body))
+
         var detailsResp MessageDetailsResponse
         if err := json.Unmarshal(body, &detailsResp); err != nil {
+                log.Printf("[MESSAGE_DETAILS] Ошибка парсинга JSON: %v", err)
                 return nil, fmt.Errorf("ошибка парсинга JSON: %w", err)
         }
+
+        log.Printf("[MESSAGE_DETAILS] Разобранный ответ: %+v", detailsResp)
 
         if detailsResp.Response.State != 200 {
                 return nil, fmt.Errorf("ошибка API: %s", detailsResp.Response.Error)
