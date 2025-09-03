@@ -2,7 +2,6 @@ package bot
 
 import (
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 
@@ -601,16 +600,16 @@ func (b *Bot) handleReadMessage(user *UserState, data string) error {
 	date := msgDetails.Response.Result.Date
 
 	if from == "" {
-		from = "Неизвестно"
+		from = "Система"
 	}
 	if subject == "" {
 		subject = "Без темы"
 	}
 	if text == "" {
-		text = "Сообщение пустое или не удалось загрузить"
+		text = "_Текст сообщения отсутствует или не удалось загрузить_"
 	}
 	if date == "" {
-		date = "Дата неизвестна"
+		date = "_Дата не указана_"
 	}
 
 	messageText := fmt.Sprintf("📨 *Детали сообщения:*\n\n"+
