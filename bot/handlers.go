@@ -604,7 +604,7 @@ func (b *Bot) handlePeriods(user *UserState) error {
 		),
 	)
 
-	return b.SendMessage(user.ChatID, text, keyboard)
+	return b.SendMessage(user.ChatID, text, &keyboard)
 }
 
 // handleMessages обрабатывает просмотр сообщений
@@ -708,7 +708,8 @@ func (b *Bot) showMessages(user *UserState, folder string) error {
 		tgbotapi.NewInlineKeyboardButtonData("🔙 Назад", "messages"),
 	})
 
-	return b.SendMessage(user.ChatID, text, tgbotapi.NewInlineKeyboardMarkup(keyboard...))
+	kb := tgbotapi.NewInlineKeyboardMarkup(keyboard...)
+	return b.SendMessage(user.ChatID, text, &kb)
 }
 
 // handleClearChat очищает чат

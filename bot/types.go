@@ -62,11 +62,11 @@ func (b *Bot) SendMessage(chatID int64, text string, keyboard interface{}) error
 	msg := tgbotapi.NewMessage(chatID, text)
 	msg.ParseMode = "HTML" // Используем HTML вместо Markdown для лучшей совместимости
 
-	if keyboard != nil {
-		if kb, ok := keyboard.(tgbotapi.InlineKeyboardMarkup); ok {
-			msg.ReplyMarkup = kb
-		}
-	}
+       if keyboard != nil {
+	       if kb, ok := keyboard.(*tgbotapi.InlineKeyboardMarkup); ok {
+		       msg.ReplyMarkup = kb
+	       }
+       }
 
 	_, err := b.API.Send(msg)
 	return err
@@ -77,11 +77,11 @@ func (b *Bot) EditMessage(chatID int64, messageID int, text string, keyboard int
 	msg := tgbotapi.NewEditMessageText(chatID, messageID, text)
 	msg.ParseMode = "HTML" // Используем HTML вместо Markdown для лучшей совместимости
 
-	if keyboard != nil {
-		if kb, ok := keyboard.(tgbotapi.InlineKeyboardMarkup); ok {
-			msg.ReplyMarkup = kb
-		}
-	}
+       if keyboard != nil {
+	       if kb, ok := keyboard.(*tgbotapi.InlineKeyboardMarkup); ok {
+		       msg.ReplyMarkup = kb
+	       }
+       }
 
 	_, err := b.API.Send(msg)
 	return err
