@@ -28,7 +28,7 @@ func splitMessage(text string, maxLength int) []string {
 
 		// Ищем лучшее место для разрыва (конец предложения, параграфа или слова)
 		cutIndex := maxLength
-		
+
 		// Ищем ближайший перенос строки назад от максимальной длины
 		if idx := strings.LastIndex(remaining[:maxLength], "\n\n"); idx > maxLength/2 {
 			cutIndex = idx + 2
@@ -1265,7 +1265,7 @@ func (b *Bot) handleGeminiAPISetup(user *UserState, apiKey string) error {
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("🤖 Использовать Gemini", "gemini"),
 		),
-		tgbotapi.NewInlineKeyboardRow(
+		tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardButtonData("🏠 Главное меню", "start"),
 		),
 	)
@@ -1396,7 +1396,7 @@ func (b *Bot) handleGeminiChat(user *UserState, message string) error {
 
 	// Отправляем сообщение в Gemini
 	response, err := client.SendMessage(message, user.GeminiContext)
-	
+
 	// Удаляем сообщение "думает"
 	if sentMsg.MessageID != 0 {
 		deleteMsg := tgbotapi.NewDeleteMessage(user.ChatID, sentMsg.MessageID)
@@ -1423,7 +1423,7 @@ func (b *Bot) handleGeminiChat(user *UserState, message string) error {
 
 	// Проверяем длину ответа и разбиваем на части если нужно
 	maxLength := 3900 // Оставляем место для заголовка и кнопок
-	
+
 	if len(response) <= maxLength {
 		// Ответ помещается в одно сообщение
 		text := fmt.Sprintf("🤖 **Gemini AI:**\n\n%s", response)
@@ -1442,17 +1442,17 @@ func (b *Bot) handleGeminiChat(user *UserState, message string) error {
 	} else {
 		// Разбиваем ответ на части
 		parts := splitMessage(response, maxLength-100) // Оставляем место для заголовка части
-		
+
 		for i, part := range parts {
 			var text string
 			var keyboard tgbotapi.InlineKeyboardMarkup
-			
+
 			if i == 0 {
 				text = fmt.Sprintf("🤖 **Gemini AI** (часть %d/%d):\n\n%s", i+1, len(parts), part)
 			} else {
 				text = fmt.Sprintf("🤖 **Продолжение** (часть %d/%d):\n\n%s", i+1, len(parts), part)
 			}
-			
+
 			// Добавляем кнопки только к последней части
 			if i == len(parts)-1 {
 				keyboard = tgbotapi.NewInlineKeyboardMarkup(
@@ -1465,36 +1465,36 @@ func (b *Bot) handleGeminiChat(user *UserState, message string) error {
 					),
 				)
 			}
-			
+
 			if err := b.SendMessage(user.ChatID, text, keyboard); err != nil {
 				return err
 			}
-			
+
 			// Небольшая задержка между сообщениями
 			time.Sleep(500 * time.Millisecond)
 		}
-		
+
 		return nil
 	}
 }
 
 // handleGeminiHelp показывает инструкцию по использованию Gemini
 func (b *Bot) handleGeminiHelp(user *UserState) error {
-	text := "📖 **Инструкция по использованию Gemini AI**\n\n" +
-		"🔧 **Настройка:**\n" +
+	text := "📖 *Инструкция по использованию Gemini AI*\n\n" +
+		"🔧 *Настройка:*\n" +
 		"1. Перейдите на [Google AI Studio](https://aistudio.google.com/)\n" +
 		"2. Войдите в Google аккаунт\n" +
 		"3. Нажмите «Get API key»\n" +
 		"4. Создайте новый проект или выберите существующий\n" +
 		"5. Создайте API ключ\n" +
 		"6. Скопируйте ключ и вставьте в бота\n\n" +
-		"🤖 **Возможности:**\n" +
+		"🤖 *Возможности:*\n" +
 		"• Помощь с домашним заданием\n" +
 		"• Объяснение сложных тем\n" +
 		"• Поиск учебных материалов\n" +
 		"• Ссылки на обучающие видео\n" +
 		"• Решение задач и примеров\n\n" +
-		"💡 **Примеры вопросов:**\n" +
+		"💡 *Примеры вопросов:*\n" +
 		"• «Объясни теорему Пифагора»\n" +
 		"• «Найди видео про квадратные уравнения»\n" +
 		"• «Помоги с задачей по химии»\n" +
@@ -1519,7 +1519,7 @@ func (b *Bot) handleGeminiReset(user *UserState) error {
 	user.GeminiContext = ""
 	user.State = "idle"
 
-	text := "🗑 **Настройки Gemini сброшены**\n\n" +
+	text := "🗑 *Настройки Gemini сброшены*\n\n" +
 		"Все данные удалены. Для повторного использования необходимо заново настроить API ключ."
 
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(
