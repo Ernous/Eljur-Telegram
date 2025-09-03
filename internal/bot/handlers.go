@@ -4,11 +4,48 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"school-diary-bot/internal/eljur"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"school-diary-bot/internal/gemini"
 )
+
+// splitMessage умно разбивает текст на части, стараясь не разрывать предложения
+func splitMessage(text string, maxLength int) []string {
+	if len(text) <= maxLength {
+		return []string{text}
+	}
+
+	var parts []string
+	remaining := text
+
+	for len(remaining) > 0 {
+		if len(remaining) <= maxLength {
+			parts = append(parts, remaining)
+			break
+		}
+
+		// Ищем лучшее место для разрыва (конец предложения, параграфа или слова)
+		cutIndex := maxLength
+		
+		// Ищем ближайший перенос строки назад от максимальной длины
+		if idx := strings.LastIndex(remaining[:maxLength], "\n\n"); idx > maxLength/2 {
+			cutIndex = idx + 2
+		} else if idx := strings.LastIndex(remaining[:maxLength], "\n"); idx > maxLength/2 {
+			cutIndex = idx + 1
+		} else if idx := strings.LastIndex(remaining[:maxLength], ". "); idx > maxLength/2 {
+			cutIndex = idx + 2
+		} else if idx := strings.LastIndex(remaining[:maxLength], " "); idx > maxLength/2 {
+			cutIndex = idx + 1
+		}
+
+		parts = append(parts, strings.TrimSpace(remaining[:cutIndex]))
+		remaining = strings.TrimSpace(remaining[cutIndex:])
+	}
+
+	return parts
+}
 
 // formatDateRu преобразует дату из формата YYYYMMDD в русский формат
 func formatDateRu(dateStr string) string {
@@ -1384,24 +1421,61 @@ func (b *Bot) handleGeminiChat(user *UserState, message string) error {
 		return b.SendMessage(user.ChatID, "❌ Gemini вернул пустой ответ. Попробуйте переформулировать вопрос.", nil)
 	}
 
-	// Ограничиваем длину ответа (Telegram ограничивает до 4096 символов)
-	if len(response) > 3800 {
-		response = response[:3800] + "\n\n... (ответ обрезан)"
+	// Проверяем длину ответа и разбиваем на части если нужно
+	maxLength := 3900 // Оставляем место для заголовка и кнопок
+	
+	if len(response) <= maxLength {
+		// Ответ помещается в одно сообщение
+		text := fmt.Sprintf("🤖 **Gemini AI:**\n\n%s", response)
+
+		keyboard := tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("💬 Продолжить чат", "gemini_chat"),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("🔙 Меню Gemini", "gemini"),
+				tgbotapi.NewInlineKeyboardButtonData("🏠 Главное меню", "start"),
+			),
+		)
+
+		return b.SendMessage(user.ChatID, text, keyboard)
+	} else {
+		// Разбиваем ответ на части
+		parts := splitMessage(response, maxLength-100) // Оставляем место для заголовка части
+		
+		for i, part := range parts {
+			var text string
+			var keyboard tgbotapi.InlineKeyboardMarkup
+			
+			if i == 0 {
+				text = fmt.Sprintf("🤖 **Gemini AI** (часть %d/%d):\n\n%s", i+1, len(parts), part)
+			} else {
+				text = fmt.Sprintf("🤖 **Продолжение** (часть %d/%d):\n\n%s", i+1, len(parts), part)
+			}
+			
+			// Добавляем кнопки только к последней части
+			if i == len(parts)-1 {
+				keyboard = tgbotapi.NewInlineKeyboardMarkup(
+					tgbotapi.NewInlineKeyboardRow(
+						tgbotapi.NewInlineKeyboardButtonData("💬 Продолжить чат", "gemini_chat"),
+					),
+					tgbotapi.NewInlineKeyboardRow(
+						tgbotapi.NewInlineKeyboardButtonData("🔙 Меню Gemini", "gemini"),
+						tgbotapi.NewInlineKeyboardButtonData("🏠 Главное меню", "start"),
+					),
+				)
+			}
+			
+			if err := b.SendMessage(user.ChatID, text, keyboard); err != nil {
+				return err
+			}
+			
+			// Небольшая задержка между сообщениями
+			time.Sleep(500 * time.Millisecond)
+		}
+		
+		return nil
 	}
-
-	text := fmt.Sprintf("🤖 **Gemini AI:**\n\n%s", response)
-
-	keyboard := tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("💬 Продолжить чат", "gemini_chat"),
-		),
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("🔙 Меню Gemini", "gemini"),
-			tgbotapi.NewInlineKeyboardButtonData("🏠 Главное меню", "start"),
-		),
-	)
-
-	return b.SendMessage(user.ChatID, text, keyboard)
 }
 
 // handleGeminiHelp показывает инструкцию по использованию Gemini
